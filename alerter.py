@@ -21,9 +21,16 @@ def send_discord_alert(symbol: str, signal_data: dict, ai_interpretation: str):
         "Open Interest": 3447003, # Blue
         "Long/Short Ratio": 15158332 # Red
     }
+    # 将主要信号的细节格式化为一行紧凑的字符串
+    details_list = []
+    for key, value in primary_signal.items():
+        if key not in ['indicator', 'signal_type']:
+            details_list.append(f"**{key.replace('_', ' ').title()}:** `{value}`")
+    details_string = " | ".join(details_list)
+
     embed = {
-        "title": f"🚨检测到市场异常: {symbol} 🚨",
-        "description": f"**Indicator:** `{indicator_name}`\n**Signal:** `{signal_type}`",
+        "title": f"🚨 {symbol} 市场异动告警 🚨",
+        "description": f"**指标:** `{indicator_name}`\n**信号:** `{signal_type}`\n**详情:** {details_string}",
         "color": color_map.get(indicator_name, 5814783), # Default grey
         "fields": [],
         "footer": {
@@ -31,10 +38,10 @@ def send_discord_alert(symbol: str, signal_data: dict, ai_interpretation: str):
         }
     }
     
-    # 添加具体指标数据
-    for key, value in primary_signal.items():
-        if key not in ['indicator', 'signal_type']:
-            embed['fields'].append({"name": key.replace('_', ' ').title(), "value": str(value), "inline": True})
+    # 添加具体指标数据 (此部分现在由上面的 description 字段处理)
+    # for key, value in primary_signal.items():
+    #     if key not in ['indicator', 'signal_type']:
+    #         embed['fields'].append({"name": key.replace('_', ' ').title(), "value": str(value), "inline": True})
     # 添加 AI 解读
     if ai_interpretation:
         embed['fields'].append({
