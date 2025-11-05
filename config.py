@@ -13,11 +13,11 @@ GEMINI_MODEL_NAME = "gemini-2.5-flash"
 GEMINI_API_BASE_URL = "https://api.uykb.eu.org/v1" 
 # --- Monitoring Settings ---
 # 动态币种监控开关 (True: 自动获取热门币种, False: 使用下面的 SYMBOLS 列表)
-DYNAMIC_SYMBOLS = True
+DYNAMIC_SYMBOLS = False
 TOP_N_SYMBOLS = 20 # 如果开启动态监控，获取流动性前 N 名的币种
 
 # 静态币种列表 (当 DYNAMIC_SYMBOLS = False 时生效，或作为动态获取失败时的备用列表)
-SYMBOLS = ['BTCUSDT', 'ETHUSDT'] # 要监控的币种列表
+SYMBOLS = ['BTCUSDT','ETHUSDT','SOLUSDT','XRPUSDT','DOGEUSDT'] # 要监控的币种列表
 TIMEFRAME = '15m'                # K线周期
 DATA_FETCH_LIMIT = 200           # 每次获取数据条数
 # --- Indicator Thresholds ---
