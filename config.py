@@ -8,9 +8,9 @@ DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
 # --- Gemini Model Settings ---
 # 默认模型名称
-GEMINI_MODEL_NAME = "gemini-2.5-pro" 
+GEMINI_MODEL_NAME = "gemini-2.5-flash" 
 # 代理或自定义API地址 (如果使用官方API，请留空或注释掉)
-GEMINI_API_BASE_URL = "https://pg.uykb.eu.org/v1" 
+GEMINI_API_BASE_URL = "https://api.uykb.eu.org/v1" 
 # --- Monitoring Settings ---
 # 动态币种监控开关 (True: 自动获取热门币种, False: 使用下面的 SYMBOLS 列表)
 DYNAMIC_SYMBOLS = True
