@@ -19,9 +19,9 @@ def get_gemini_interpretation(symbol: str, timeframe: str, signal_data: dict):
 
 Your Task is to analyze the primary signal in conjunction with the broader market context provided. Structure your interpretation in the following format:
 
-【核心信号解读】: What does the specific primary signal mean in technical terms? (e.g., "A volume Z-Score of 3.5 indicates an extreme deviation from the recent average, suggesting a major market participant's activity.")
-【市场背景分析】: How does the market context (recent price action, key indicators, CVD) support or contradict the primary signal? (e.g., "This volume spike is occurring as the price is testing a key resistance level identified by the EMA_26, and the RSI is approaching overbought territory. The recent CVD trend has been flat, suggesting this may be a climactic top rather than a breakout.")
-【潜在影响与后续关注】: What is the most likely short-term impact, and what specific price levels or indicator behaviors should be monitored for confirmation or invalidation? (e.g., "Potential for a short-term reversal. Watch for a price rejection at the $68,200 level. Confirmation would be a bearish divergence on the RSI on the next price swing.")
+【核心信号解读】What does the specific primary signal mean in technical terms? (e.g., "A volume Z-Score of 3.5 indicates an extreme deviation from the recent average, suggesting a major market participant's activity.")
+【市场背景分析】How does the market context (recent price action, key indicators, CVD) support or contradict the primary signal? (e.g., "This volume spike is occurring as the price is testing a key resistance level identified by the EMA_26, and the RSI is approaching overbought territory. The recent CVD trend has been flat, suggesting this may be a climactic top rather than a breakout.")
+【潜在影响与后续关注】What is the most likely short-term impact, and what specific price levels or indicator behaviors should be monitored for confirmation or invalidation? (e.g., "Potential for a short-term reversal. Watch for a price rejection at the $68,200 level. Confirmation would be a bearish divergence on the RSI on the next price swing.")
 """
 
     # 将K线数据格式化为更易读的字符串
