@@ -39,11 +39,27 @@ def send_discord_alert(symbol: str, signal_data: dict, ai_interpretation: str):
     
     # 添加 AI 解读
     if ai_interpretation:
-        embed['fields'].append({
-            "name": "🤖 Gemini AI Analyst Insight",
-            "value": (ai_interpretation[:1000] + '...') if len(ai_interpretation) > 1000 else ai_interpretation,
-            "inline": False 
-        })
+        # 尝试按分段解析 AI 解读
+        sections = ai_interpretation.split('【')
+        parsed = False
+        for section in sections:
+            if '】' in section:
+                parts = section.split('】', 1)
+                title = "🤖 " + parts[0]
+                content = parts[1].strip()
+                if content:
+                    # 确保内容不超过 Discord 限制
+                    value = (content[:1021] + '...') if len(content) > 1024 else content
+                    embed['fields'].append({"name": title, "value": value, "inline": False})
+                    parsed = True
+        
+        # 如果解析失败，则使用旧的单字段方法作为备用
+        if not parsed:
+            embed['fields'].append({
+                "name": "🤖 Gemini AI Analyst Insight",
+                "value": (ai_interpretation[:1000] + '...') if len(ai_interpretation) > 1000 else ai_interpretation,
+                "inline": False 
+            })
     
     payload = {"embeds": [embed]}
     
