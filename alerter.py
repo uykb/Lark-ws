@@ -30,7 +30,6 @@ def send_discord_alert(symbol: str, signal_data: dict, ai_interpretation: str):
 
     embed = {
         "title": f"🚨 {symbol} 市场异动告警 🚨",
-        "description": f"**指标:** `{indicator_name}`\n**信号:** `{signal_type}`\n**详情:** {details_string}",
         "color": color_map.get(indicator_name, 5814783), # Default grey
         "fields": [],
         "footer": {
@@ -38,15 +37,11 @@ def send_discord_alert(symbol: str, signal_data: dict, ai_interpretation: str):
         }
     }
     
-    # 添加具体指标数据 (此部分现在由上面的 description 字段处理)
-    # for key, value in primary_signal.items():
-    #     if key not in ['indicator', 'signal_type']:
-    #         embed['fields'].append({"name": key.replace('_', ' ').title(), "value": str(value), "inline": True})
     # 添加 AI 解读
     if ai_interpretation:
         embed['fields'].append({
             "name": "🤖 Gemini AI Analyst Insight",
-            "value": ai_interpretation,
+            "value": (ai_interpretation[:1000] + '...') if len(ai_interpretation) > 1000 else ai_interpretation,
             "inline": False 
         })
     
