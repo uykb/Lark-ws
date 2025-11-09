@@ -17,7 +17,7 @@ DYNAMIC_SYMBOLS = False
 TOP_N_SYMBOLS = 20 # 如果开启动态监控，获取流动性前 N 名的币种
 
 # 静态币种列表 (当 DYNAMIC_SYMBOLS = False 时生效，或作为动态获取失败时的备用列表)
-SYMBOLS = ['BTCUSDT','ETHUSDT','SOLUSDT','XRPUSDT','DOGEUSDT'] # 要监控的币种列表
+SYMBOLS = ['BTCUSDT','ETHUSDT','SOLUSDT','DOGEUSDT'] # 要监控的币种列表
 TIMEFRAME = '15m'                # K线周期
 DATA_FETCH_LIMIT = 200           # 每次获取数据条数
 # --- Indicator Thresholds ---
