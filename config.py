@@ -27,7 +27,7 @@ VOLUME_LOOKBACK_PERIOD = 96      # 回看周期 (15m * 96 = 24 hours)
 # Open Interest (OI) Anomaly
 OI_LOOKBACK_PERIOD = 96          # OI回看周期
 OI_CONTINUOUS_RISE_PERIODS = 4   # OI连续上涨N个周期则触发
-OI_SUDDEN_CHANGE_THRESHOLD = 0.03 # OI单周期剧烈变化阈值 (5%)
+OI_SUDDEN_CHANGE_THRESHOLD = 0.035 # OI单周期剧烈变化阈值 (5%)
 OI_24H_CHANGE_THRESHOLD = 0.10   # OI 24小时变化阈值 (20%)
 # Long/Short Ratio Anomaly
 LS_RATIO_Z_SCORE_THRESHOLD = 2.0 # 多空比Z-Score异动阈值
