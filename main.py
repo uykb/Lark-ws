@@ -6,6 +6,10 @@ from data_fetcher import get_binance_data, get_top_liquid_symbols
 from indicators import VolumeSignal, OpenInterestSignal, LSRatioSignal
 from ai_interpreter import get_gemini_interpretation
 from alerter import send_discord_alert
+from state_manager import SignalStateManager
+
+# 初始化状态管理器
+state_manager = SignalStateManager()
 
 def run_check():
     # 根据配置决定使用哪个币种列表
@@ -34,13 +38,16 @@ def run_check():
         for checker in indicator_checkers:
             signal = checker.check(df)
             if signal:
-                print(f"为 {symbol} 找到信号: {signal['primary_signal']}")
-                # 获取 AI 解读
-                ai_insight = get_gemini_interpretation(symbol, TIMEFRAME, signal)
-                # 发送通知
-                send_discord_alert(symbol, signal, ai_insight)
-                # 防止短时间重复发送同一个信号
-                time.sleep(2) 
+                print(f"为 {symbol} 找到潜在信号: {signal['primary_signal']}")
+                # 检查是否应该发送警报
+                should_send, prev_signal = state_manager.should_send_alert(symbol, signal)
+                if should_send:
+                    # 获取 AI 解读
+                    ai_insight = get_gemini_interpretation(symbol, TIMEFRAME, signal, previous_signal=prev_signal)
+                    # 发送通知
+                    send_discord_alert(symbol, signal, ai_insight)
+                    # 防止短时间重复发送同一个信号
+                    time.sleep(2)
     
     print("检查完成。")
 

@@ -7,7 +7,7 @@ client = OpenAI(
     base_url=GEMINI_API_BASE_URL,
 )
 
-def get_gemini_interpretation(symbol: str, timeframe: str, signal_data: dict):
+def get_gemini_interpretation(symbol: str, timeframe: str, signal_data: dict, previous_signal: dict = None):
     """
     使用自定义的 OpenAI 兼容 API 解读指标异动信号及其市场背景
     """
@@ -27,7 +27,21 @@ Your Task is to analyze the primary signal in conjunction with the broader marke
     # 将K线数据格式化为更易读的字符串
     klines_str = "\n".join([f"  - O:{k['open']:.2f} H:{k['high']:.2f} L:{k['low']:.2f} C:{k['close']:.2f} V:{k['volume']:,.0f}" for k in market_context.get('recent_klines', [])])
 
-    user_prompt = f"""
+    # 构建历史信号部分
+    if previous_signal:
+        prev_signal_context = f"""**0. Previous Signal Context:**
+This is an update to a previously triggered signal. Your task is to analyze if the new signal represents a continuation, acceleration, or potential reversal of the situation.
+Previous Signal:
+```json
+{json.dumps(previous_signal, indent=2)}
+```
+"""
+    else:
+        prev_signal_context = """**0. Context:**
+This is a new signal alert.
+"""
+
+    user_prompt = f"""{prev_signal_context}
 **Asset:** {symbol}
 **Timeframe:** {timeframe}
 
