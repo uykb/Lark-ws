@@ -11,7 +11,7 @@ RUN micromamba create -p /tmp/env -f /tmp/environment.yml && \
 
 # ---- Final Stage ----
 # 使用一个非常小的 "distroless" 风格镜像作为最终运行环境
-FROM mambaorg/micromamba:1.5.6-slim as final
+FROM mambaorg/micromamba:1.5.6 as final
 
 # 从构建阶段复制已安装好的环境
 COPY --from=builder /tmp/env /opt/conda/
