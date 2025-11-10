@@ -1,18 +1,27 @@
-# 1. 使用官方 Miniconda3 镜像作为基础
-FROM continuumio/miniconda3
+# ---- Builder Stage ----
+# 使用 micromamba 镜像作为构建环境
+FROM mambaorg/micromamba:1.5.6 as builder
 
-# 2. 在容器内设置工作目录
+# 复制环境定义文件
+COPY --chown=$MAMBA_USER:$MAMBA_USER environment.yml /tmp/environment.yml
+
+# 在一个单独的前缀中创建环境，并安装所有依赖
+RUN micromamba create -p /tmp/env -f /tmp/environment.yml && \
+    micromamba clean --all --yes
+
+# ---- Final Stage ----
+# 使用一个非常小的 "distroless" 风格镜像作为最终运行环境
+FROM mambaorg/micromamba:1.5.6-slim as final
+
+# 从构建阶段复制已安装好的环境
+COPY --from=builder /tmp/env /opt/conda/
+
+# 复制你的应用代码
+COPY . /app
 WORKDIR /app
 
-# 3. 复制依赖文件，以便利用 Docker 的缓存机制
-COPY requirements.txt .
+# 设置 PATH，以便可以直接调用 python
+ENV PATH="/opt/conda/bin:$PATH"
 
-# 4. 安装项目依赖
-# 使用 --no-cache-dir 减小镜像体积
-RUN pip install --no-cache-dir -r requirements.txt
-
-# 5. 复制项目的所有代码到工作目录
-COPY . .
-
-# 6. 定义容器启动时执行的默认命令
+# 定义容器启动时执行的默认命令
 CMD ["python", "main.py"]
