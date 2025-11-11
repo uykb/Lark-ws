@@ -64,7 +64,11 @@ def get_binance_data(symbol: str):
         ls_df['timestamp'] = pd.to_datetime(ls_df['timestamp'], unit='ms')
         ls_df.set_index('timestamp', inplace=True)
         df['ls_ratio'] = pd.to_numeric(ls_df['longShortRatio'])
-        df.dropna(inplace=True)
+        
+        # 最大化保留K线数据：通过bfill和ffill的组合，填补因时间戳未对齐而在头部或中间产生的空缺
+        df.bfill(inplace=True)
+        df.ffill(inplace=True)
+        
         return df
     except Exception as e:
         print(f"Error fetching data for {symbol}: {e}")
