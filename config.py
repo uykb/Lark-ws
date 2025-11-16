@@ -12,7 +12,8 @@ GEMINI_MODEL_NAME = "gemini-2.5-flash"
 # 代理或自定义API地址 (如果使用官方API，请留空或注释掉)
 GEMINI_API_BASE_URL = "https://api.uykb.eu.org/v1" 
 # --- Monitoring Settings ---
-TIMEFRAME = '15m'                # K线周期
+DEFAULT_TIMEFRAME = '15m'        # 默认K线周期 (用于 "Catch the Rise" 等)
+FVG_TIMEFRAME = '1h'             # FVG信号的K线周期
 DATA_FETCH_LIMIT = 200           # 每次获取数据条数
 # --- Indicator Thresholds ---
 # Rule 1: Catch the Rise
