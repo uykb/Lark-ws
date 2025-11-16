@@ -1,9 +1,9 @@
 import time
 import schedule
 from datetime import datetime
-from config import SYMBOLS, TIMEFRAME, DYNAMIC_SYMBOLS
-from data_fetcher import get_binance_data, get_top_liquid_symbols
-from indicators import VolumeSignal, OpenInterestSignal, LSRatioSignal
+from config import TIMEFRAME
+from data_fetcher import get_binance_data, get_all_usdt_futures_symbols
+from indicators import CatchTheRiseSignal, FVGTrendSignal
 from ai_interpreter import get_gemini_interpretation
 from alerter import send_discord_alert
 from state_manager import SignalStateManager
@@ -12,20 +12,16 @@ from state_manager import SignalStateManager
 state_manager = SignalStateManager()
 
 def run_check():
-    # 根据配置决定使用哪个币种列表
-    if DYNAMIC_SYMBOLS:
-        symbols_to_check = get_top_liquid_symbols()
-        # 如果动态获取失败，则使用静态列表作为备用
-        if not symbols_to_check:
-            print("动态获取币种列表失败，将使用 config.py 中的静态列表作为备用。")
-            symbols_to_check = SYMBOLS
-    else:
-        symbols_to_check = SYMBOLS
+    # 获取所有U本位永续合约交易对
+    symbols_to_check = get_all_usdt_futures_symbols()
+    if not symbols_to_check:
+        print("未能获取任何交易对，跳过此次检查。")
+        return
 
-    print(f"\n[{datetime.now()}] 开始执行检查，目标币种: {', '.join(symbols_to_check)}...")
+    print(f"\n[{datetime.now()}] 开始执行检查，目标: {len(symbols_to_check)} 个交易对...")
     
     # 初始化所有指标检查器
-    indicator_checkers = [VolumeSignal(), OpenInterestSignal(), LSRatioSignal()]
+    indicator_checkers = [CatchTheRiseSignal(), FVGTrendSignal()]
     
     for symbol in symbols_to_check:
         print(f"--- 正在检查 {symbol} ---")

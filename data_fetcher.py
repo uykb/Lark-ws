@@ -1,33 +1,26 @@
 import requests
 import pandas as pd
-from config import TIMEFRAME, DATA_FETCH_LIMIT, TOP_N_SYMBOLS
+from config import TIMEFRAME, DATA_FETCH_LIMIT
 
 BASE_URL = "https://fapi.binance.com"
 
-def get_top_liquid_symbols():
-    """获取币安期货市场流动性最高的 N 个 USDT 交易对"""
+def get_all_usdt_futures_symbols():
+    """获取币安所有U本位永续合约交易对"""
     try:
-        ticker_url = f"{BASE_URL}/fapi/v1/ticker/24hr"
-        tickers = requests.get(ticker_url).json()
+        info_url = f"{BASE_URL}/fapi/v1/exchangeInfo"
+        exchange_info = requests.get(info_url).json()
         
-        # 过滤出 USDT 永续合约并转换为 DataFrame
-        usdt_futures = [t for t in tickers if t['symbol'].endswith('USDT')]
-        df = pd.DataFrame(usdt_futures)
+        symbols = [
+            s['symbol'] 
+            for s in exchange_info['symbols'] 
+            if s['contractType'] == 'PERPETUAL' and s['symbol'].endswith('USDT') and s['status'] == 'TRADING'
+        ]
         
-        # 将交易量转换为数值类型以便排序
-        df['quoteVolume'] = pd.to_numeric(df['quoteVolume'])
-        
-        # 按 24 小时交易额降序排序
-        top_symbols = df.sort_values(by='quoteVolume', ascending=False)
-        
-        # 提取前 N 个币种的名称
-        symbol_list = top_symbols['symbol'].head(TOP_N_SYMBOLS).tolist()
-        
-        print(f"动态获取到流动性前 {TOP_N_SYMBOLS} 的币种: {', '.join(symbol_list)}")
-        return symbol_list
+        print(f"获取到 {len(symbols)} 个USDT永续合约交易对。")
+        return symbols
         
     except Exception as e:
-        print(f"动态获取热门币种列表失败: {e}")
+        print(f"获取所有交易对列表失败: {e}")
         return []
 
 def get_binance_data(symbol: str):
