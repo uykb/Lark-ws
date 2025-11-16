@@ -14,7 +14,7 @@ GEMINI_API_BASE_URL = "https://api.uykb.eu.org/v1"
 # --- Monitoring Settings ---
 DEFAULT_TIMEFRAME = '15m'        # 默认K线周期 (用于 "Catch the Rise" 等)
 FVG_TIMEFRAME = '1h'             # FVG信号的K线周期
-DATA_FETCH_LIMIT = 200           # 每次获取数据条数
+DATA_FETCH_LIMIT = 1000          # 每次获取数据条数
 # --- Indicator Thresholds ---
 # Rule 1: Catch the Rise
 RISE_OI_CHANGE_THRESHOLD = 0.05    # OI a single period change threshold (5%)
