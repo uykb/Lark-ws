@@ -1,100 +1,90 @@
-# Crypto Indicator Alerts
+# Crypto Trading Signal Bot
 
-这是一个自动化的加密货币市场指标监控机器人。它能监控币安期货市场的热门币种，检测成交量、持仓量、多空比等关键指标的异动，并利用 AI 对信号进行综合分析，最终通过 Discord 发送实时警报。
+This is an automated crypto trading signal bot that monitors all USDT perpetual futures on Binance. It identifies high-probability trading opportunities based on specific market structure patterns and sends real-time, AI-enhanced alerts via Discord.
 
-## ✨ 主要功能
+## ✨ Main Features
 
-- **动态币种监控**: 自动跟踪并监控币安期货市场上流动性最高的 N 个币种，无需手动配置。
-- **多维度指标分析**: 监控成交量 (Volume)、持仓量 (Open Interest)、多空比 (Long/Short Ratio) 和 CVD (Cumulative Volume Delta) 的异动。
-- **AI 驱动的深度解读**: 不仅仅是简单的信号提醒！AI 会结合触发信号以及包含近期K线、RSI、EMA 等指标在内的“市场快照”，提供专业的综合分析。
-- **Docker 化与 CI/CD**: 内置 `Dockerfile` 和 GitHub Actions 工作流，实现从代码推送到 `ghcr.io` 镜像发布的自动化流程，完美适配云原生部署。
-- **高度可配置**: 几乎所有参数（如监控阈值、动态/静态模式、监控币种数量）都可以在 `config.py` 中轻松调整。
+- **Comprehensive Market Monitoring**: Automatically fetches and monitors **all** USDT perpetual futures contracts on Binance, ensuring no opportunity is missed.
+- **Advanced Signal Detection**: Implements two specific, high-impact alert rules:
+    1.  **Catch the Rise (15min)**: Triggers an alert when a contract's Open Interest increases by over 5% and its price simultaneously rises by over 2% within a single 15-minute candle, capturing moments of explosive momentum.
+    2.  **Catch the Trend (15min FVG)**: Identifies Fair Value Gaps (FVGs), waits for the price to rebalance within the gap, and then triggers an alert on a confirmed trend reversal candle, allowing for strategic entries based on market structure.
+- **AI-Powered In-depth Analysis**: Each alert is enriched with an AI-generated analysis that interprets the signal in the context of the broader market, providing a professional, data-driven thesis for the potential trade.
+- **Dockerized & CI/CD Ready**: Comes with a `Dockerfile` and GitHub Actions workflow for automated building and deployment to cloud platforms, making it easy to run 24/7.
+- **Simplified Configuration**: Key parameters are easily adjustable in the `config.py` file.
 
 ---
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 1. 本地开发与运行
+### 1. Local Development
 
-**前提**:
+**Prerequisites**:
 - Python 3.8+
 - Git
 
-**步骤**:
-1. **克隆仓库**:
-   ```bash
-   git clone <YOUR_REPOSITORY_URL>
-   cd crypto_indicator_alerts
-   ```
+**Steps**:
+1.  **Clone the repository**:
+    ```bash
+    git clone <YOUR_REPOSITORY_URL>
+    cd <YOUR_PROJECT_DIRECTORY>
+    ```
 
-2. **创建并配置 `.env` 文件**:
-   复制 `.env.example` (如果存在) 或手动创建一个 `.env` 文件，并填入您的密钥：
-   ```env
-   # .env
-   GEMINI_API_KEY="YOUR_CUSTOM_API_KEY"
-   DISCORD_WEBHOOK_URL="YOUR_DISCORD_WEBHOOK_URL"
-   ```
+2.  **Create and configure the `.env` file**:
+    Create a file named `.env` in the project root and add your API keys:
+    ```env
+    # .env
+    GEMINI_API_KEY="YOUR_GEMINI_API_KEY"
+    DISCORD_WEBHOOK_URL="YOUR_DISCORD_WEBHOOK_URL"
+    ```
 
-3. **安装依赖**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+3.  **Install dependencies**:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-4. **运行程序**:
-   ```bash
-   python main.py
-   ```
-
----
-
-### 2. 通过 Docker 运行
-
-**前提**:
-- Docker 已安装并运行
-
-**步骤**:
-1. **构建镜像**:
-   在项目根目录 (`crypto_indicator_alerts`) 下运行：
-   ```bash
-   docker build -t crypto-alerts .
-   ```
-
-2. **运行容器**:
-   确保 `.env` 文件已配置好，然后运行：
-   ```bash
-   docker run --rm --env-file .env crypto-alerts
-   ```
+4.  **Run the bot**:
+    ```bash
+    python main.py
+    ```
 
 ---
 
-## ☁️ 云平台部署 (以 claw.cloud 为例)
+### 2. Running with Docker
 
-本项目已为您配置好完整的 CI/CD 流程，部署到云平台非常简单。
+**Prerequisites**:
+- Docker installed and running
 
-### 部署流程概览
+**Steps**:
+1.  **Build the Docker image**:
+    ```bash
+    docker build -t crypto-signal-bot .
+    ```
 
-1.  **推送代码**: 您将本地代码推送到 GitHub 仓库的 `main` 分支。
-2.  **自动构建**: GitHub Actions 会被自动触发，构建 Docker 镜像。
-3.  **自动发布**: 构建成功后，镜像会被推送到 GitHub Container Registry (`ghcr.io`)。
-4.  **云端拉取与部署**: 您的云平台 (如 `claw.cloud`) 会检测到新镜像，自动拉取并部署新版本。
+2.  **Run the container**:
+    Make sure your `.env` file is configured, then run:
+    ```bash
+    docker run --rm --env-file .env crypto-signal-bot
+    ```
 
-### 首次部署步骤
+---
 
-1. **创建 GitHub 仓库并推送代码**:
-   - 在 GitHub 上创建一个新的仓库。
-   - 将本项目的所有文件（包括 `.github` 文件夹）推送到该仓库的 `main` 分支。
+## ☁️ Cloud Deployment
 
-2. **检查镜像发布**:
-   - 推送后，进入您 GitHub 仓库的 "Actions" 标签页，您会看到一个正在运行的工作流。
-   - 待其成功完成后，您的 Docker 镜像就已经发布到了 `ghcr.io`。镜像地址通常为 `ghcr.io/<YOUR_GITHUB_USERNAME>/<YOUR_REPOSITORY_NAME>:latest`。
+This project is configured for easy CI/CD deployment to cloud platforms that support Docker.
 
-3. **在 claw.cloud (或类似平台) 上配置部署**:
-   - **创建新服务**: 在您的云平台上，选择从一个已有的 Docker 镜像部署。
-   - **镜像地址**: 填入您在 `ghcr.io` 上的镜像地址。
-   - **配置环境变量**: 这是**最关键**的一步。在平台的服务设置中，找到 "Environment Variables" 或 "Secrets" 部分，添加以下两个变量：
-     - `GEMINI_API_KEY`: 填入您的 AI API 密钥。
-     - `DISCORD_WEBHOOK_URL`: 填入您的 Discord Webhook URL。
-   - **自动部署 (可选)**: 大多数平台都支持配置 Webhook。您可以将平台提供的 Webhook URL 添加到您 GitHub 仓库的 `Settings -> Webhooks` 中，这样每当有新镜像推送到 `ghcr.io` 时，云平台就会自动拉取并更新服务。
+### Deployment Overview
 
-4. **启动服务**:
-   - 保存配置并启动服务。您的监控机器人现在已经在云端 24/7 运行了！
+1.  **Push to GitHub**: Pushing code to the `main` branch triggers the GitHub Actions workflow.
+2.  **Automated Build**: The workflow automatically builds the Docker image.
+3.  **Publish to GHCR**: The new image is pushed to the GitHub Container Registry (`ghcr.io`).
+4.  **Deploy on Cloud**: Your cloud platform detects the new image and automatically deploys the latest version of the bot.
+
+### First-Time Deployment Steps
+
+1.  **Create a GitHub repository** and push the project files.
+2.  **Verify Image Publication**: After the first push, check the "Actions" tab in your repository to confirm the workflow ran successfully and the image is available at `ghcr.io/<YOUR_GITHUB_USERNAME>/<YOUR_REPOSITORY_NAME>:latest`.
+3.  **Configure Cloud Service**:
+    -   Create a new service on your cloud platform, deploying from an existing Docker image.
+    -   Use the image URL from `ghcr.io`.
+    -   **Crucially**, set the `GEMINI_API_KEY` and `DISCORD_WEBHOOK_URL` as environment variables or secrets in your cloud service's settings.
+4.  **Launch the service** to have your bot running 24/7 in the cloud.
