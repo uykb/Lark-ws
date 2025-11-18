@@ -41,10 +41,10 @@ def _create_market_snapshot(df: pd.DataFrame, primary_signal: dict):
         }
     }
 
-class CatchTheRiseSignal:
+class MomentumSpikeSignal:
     """
-    Rule 1: Catch the Rise - 15min
-    Triggers when Open Interest increases by >5% and price increases by >2% in a single 15-minute candle.
+    Detects a momentum spike based on significant changes in both price and open interest.
+    Triggers when |OI Change| > 5% and |Price Change| > 2% in a single 15-minute candle.
     """
     def check(self, df: pd.DataFrame):
         if len(df) < 2:
@@ -57,75 +57,17 @@ class CatchTheRiseSignal:
         price_change = (latest['close'] / previous['close']) - 1
         oi_change = (latest['oi'] / previous['oi']) - 1
         
-        if oi_change > RISE_OI_CHANGE_THRESHOLD and price_change > RISE_PRICE_CHANGE_THRESHOLD:
+        if abs(oi_change) > RISE_OI_CHANGE_THRESHOLD and abs(price_change) > RISE_PRICE_CHANGE_THRESHOLD:
+            
+            direction = "Bullish" if price_change > 0 else "Bearish"
+            
             signal = {
-                "indicator": "Price/OI Spike",
-                "signal_type": "Catch the Rise",
+                "indicator": "Price/OI Momentum Spike",
+                "signal_type": f"{direction} Spike",
                 "price_change": f"{price_change:+.2%}",
                 "oi_change": f"{oi_change:+.2%}",
                 "current_price": f"{latest['close']:.2f}",
                 "current_oi": f"${latest['oi']:,.0f}"
             }
             return _create_market_snapshot(df, signal)
-        return None
-
-class FVGTrendSignal:
-    """
-    Rule 2: Catch the Trend - 15min FVG Reversal
-    Identifies a Fair Value Gap (FVG), waits for it to be rebalanced, and then triggers on a trend reversal candle.
-    """
-    def _find_fvg(self, df: pd.DataFrame):
-        """Finds the most recent FVG in the last 20 candles."""
-        for i in range(len(df) - 3, max(0, len(df) - 20), -1):
-            candle1 = df.iloc[i]
-            candle3 = df.iloc[i+2]
-            
-            # Bullish FVG: Candle 1's high is lower than Candle 3's low
-            if candle1['high'] < candle3['low']:
-                return 'bullish', candle1['high'], candle3['low'], i + 2
-            # Bearish FVG: Candle 1's low is higher than Candle 3's high
-            if candle1['low'] > candle3['high']:
-                return 'bearish', candle3['high'], candle1['low'], i + 2
-        return None, None, None, None
-
-    def check(self, df: pd.DataFrame):
-        if len(df) < 20: # Need enough data to find FVGs and check for reversals
-            return None
-
-        fvg_type, fvg_top, fvg_bottom, fvg_candle_index = self._find_fvg(df)
-        
-        if not fvg_type:
-            return None
-
-        # Check for rebalancing and reversal in the candles *after* the FVG was formed
-        for i in range(fvg_candle_index + 1, len(df) -1):
-            current_candle = df.iloc[i]
-            next_candle = df.iloc[i+1]
-
-            if fvg_type == 'bullish':
-                # Rebalancing: price dips into the FVG zone
-                if current_candle['low'] < fvg_bottom:
-                    # Reversal: the next candle is a strong bullish candle
-                    if next_candle['close'] > next_candle['open'] and (next_candle['close'] - next_candle['open']) > (current_candle['open'] - current_candle['close']):
-                        signal = {
-                            "indicator": "FVG Trend",
-                            "signal_type": "Bullish Reversal after FVG Fill",
-                            "fvg_range": f"${fvg_top:.2f} - ${fvg_bottom:.2f}",
-                            "reversal_candle_close": f"${next_candle['close']:.2f}"
-                        }
-                        return _create_market_snapshot(df, signal)
-
-            elif fvg_type == 'bearish':
-                # Rebalancing: price rallies into the FVG zone
-                if current_candle['high'] > fvg_top:
-                    # Reversal: the next candle is a strong bearish candle
-                    if next_candle['close'] < next_candle['open'] and (next_candle['open'] - next_candle['close']) > (current_candle['close'] - current_candle['open']):
-                        signal = {
-                            "indicator": "FVG Trend",
-                            "signal_type": "Bearish Reversal after FVG Fill",
-                            "fvg_range": f"${fvg_top:.2f} - ${fvg_bottom:.2f}",
-                            "reversal_candle_close": f"${next_candle['close']:.2f}"
-                        }
-                        return _create_market_snapshot(df, signal)
-        
         return None

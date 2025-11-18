@@ -19,9 +19,6 @@ DATA_FETCH_LIMIT = 1000          # 每次获取数据条数
 RISE_OI_CHANGE_THRESHOLD = 0.05    # OI a single period change threshold (5%)
 RISE_PRICE_CHANGE_THRESHOLD = 0.02 # Price a single period change threshold (2%)
 
-# Rule 2: FVG Trend Catch
-# (No specific thresholds needed here, logic is pattern-based)
-
 # --- State Management (Memory) Settings ---
 # 信号冷却时间（分钟），在此时间内，相似的信号不会重复发送
 SIGNAL_COOLDOWN_PERIOD = 60  # 60分钟 = 1小时
