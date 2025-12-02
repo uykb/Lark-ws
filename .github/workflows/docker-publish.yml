@@ -2,7 +2,9 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - "main"
+      - "stable"
   pull_request:
     branches: [ "main" ]
 
@@ -28,7 +30,14 @@ jobs:
       id: meta
       uses: docker/metadata-action@v4
       with:
-        images: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
+        images: ghcr.io/${{ github.repository_owner }}/oi-bot
+        tags: |
+          # For pushes to the main branch, use 'latest' tag
+          type=raw,value=latest,enable={{is_default_branch}}
+          # For pushes to any other branch (e.g., stable), use the branch name as the tag
+          type=ref,event=branch
+          # For pull requests, use 'pr-' followed by the PR number
+          type=ref,event=pr
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v4
