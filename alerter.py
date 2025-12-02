@@ -2,13 +2,15 @@ import requests
 import json
 from datetime import datetime
 from config import DISCORD_WEBHOOK_URL
+from logger import log
+
 def send_discord_alert(symbol: str, signal_data: dict, ai_interpretation: str):
     """
     构建并发送一个精美的 Discord embed 消息
     """
     webhook_url = DISCORD_WEBHOOK_URL
     if not webhook_url:
-        print("Discord webhook URL not set.")
+        log.warning("Discord webhook URL not set. Cannot send alert.")
         return
     
     # 从新的数据结构中提取主要触发信号
@@ -66,6 +68,6 @@ def send_discord_alert(symbol: str, signal_data: dict, ai_interpretation: str):
     try:
         response = requests.post(webhook_url, data=json.dumps(payload), headers={'Content-Type': 'application/json'})
         response.raise_for_status()
-        print("Discord alert sent successfully.")
+        log.info(f"Discord alert for {symbol} sent successfully.")
     except requests.exceptions.RequestException as e:
-        print(f"Error sending Discord alert: {e}")
+        log.error(f"Error sending Discord alert for {symbol}: {e}")

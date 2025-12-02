@@ -1,16 +1,34 @@
 import json
 from openai import OpenAI
 from config import GEMINI_API_KEY, GEMINI_MODEL_NAME, GEMINI_API_BASE_URL
+from logger import log
 
-client = OpenAI(
-    api_key=GEMINI_API_KEY,
-    base_url=GEMINI_API_BASE_URL,
-)
+def get_openai_client():
+    """
+    Lazy initialization of the OpenAI client to avoid errors at import time
+    if the API key is not set.
+    """
+    if not GEMINI_API_KEY:
+        log.warning("GEMINI_API_KEY is not set. AI interpretation will be skipped.")
+        return None
+        
+    try:
+        return OpenAI(
+            api_key=GEMINI_API_KEY,
+            base_url=GEMINI_API_BASE_URL,
+        )
+    except Exception as e:
+        log.error(f"Failed to initialize OpenAI client: {e}")
+        return None
 
 def get_gemini_interpretation(symbol: str, timeframe: str, signal_data: dict, previous_signal: dict = None):
     """
     使用自定义的 OpenAI 兼容 API 解读指标异动信号及其市场背景
     """
+    client = get_openai_client()
+    if not client:
+        return "AI interpretation unavailable (API Key missing)."
+
     # 为了可读性，将数据包拆分
     primary_signal = signal_data.get('primary_signal', {})
     market_context = signal_data.get('market_context', {})
@@ -72,7 +90,8 @@ This is a new signal alert.
             ],
             temperature=0.6, # 稍微提高一点创造性以进行更好的分析
         )
+        log.info(f"Successfully received AI interpretation for {symbol}.")
         return response.choices[0].message.content
     except Exception as e:
-        print(f"Error calling custom API: {e}")
+        log.error(f"Error calling custom API for {symbol}: {e}")
         return "AI interpretation failed."

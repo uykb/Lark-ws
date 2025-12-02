@@ -8,16 +8,41 @@ DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
 # --- Gemini Model Settings ---
 # 默认模型名称
-GEMINI_MODEL_NAME = "gemini-2.5-flash-lite" 
+GEMINI_MODEL_NAME = "gemini-2.5-flash-lite"
 # 代理或自定义API地址 (如果使用官方API，请留空或注释掉)
-GEMINI_API_BASE_URL = "https://api.uykb.eu.org/v1" 
+GEMINI_API_BASE_URL = "https://api.uykb.eu.org/v1"
 # --- Monitoring Settings ---
 TIMEFRAME = '15m'                # K线周期
 DATA_FETCH_LIMIT = 1000          # 每次获取数据条数
+
+# A list of major coins to monitor. If empty, the bot will scan all USDT perpetual futures.
+MAJOR_COINS = [
+    "BTCUSDT",
+    "ETHUSDT",
+    "BNBUSDT",
+    "SOLUSDT",
+    "XRPUSDT",
+    "DOGEUSDT",
+    "ADAUSDT",
+    "AVAXUSDT",
+    "LINKUSDT",
+    "DOTUSDT",
+]
 # --- Indicator Thresholds ---
 # Rule 1: Catch the Rise
-RISE_OI_CHANGE_THRESHOLD = 0.05    # OI a single period change threshold (5%)
-RISE_PRICE_CHANGE_THRESHOLD = 0.02 # Price a single period change threshold (2%)
+RISE_OI_CHANGE_THRESHOLD = 0.03    # OI a single period change threshold (3%)
+RISE_PRICE_CHANGE_THRESHOLD = 0.01 # Price a single period change threshold (1%)
+
+# Rule 2: Catch the Trend (FVG)
+FVG_REBALANCE_THRESHOLD = 0.5      # Price must retrace at least 50% into the FVG
+FVG_CONFIRMATION_CANDLE_TYPE = 'hammer' # 'hammer', 'shooting_star', 'engulfing', etc.
+
+# --- Active Signals ---
+# A list of signal class names to be activated.
+ACTIVE_SIGNALS = [
+    "MomentumSpikeSignal",
+    "FairValueGapSignal",
+]
 
 # --- State Management (Memory) Settings ---
 # 信号冷却时间（分钟），在此时间内，相似的信号不会重复发送

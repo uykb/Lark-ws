@@ -1,58 +1,71 @@
 import time
 import schedule
 from datetime import datetime
-from config import TIMEFRAME
-from data_fetcher import get_binance_data, get_all_usdt_futures_symbols
-from indicators import MomentumSpikeSignal
+from config import TIMEFRAME, ACTIVE_SIGNALS
+from data_fetcher import get_all_binance_data_sync
+import indicators as indicator_module
 from ai_interpreter import get_gemini_interpretation
 from alerter import send_discord_alert
 from state_manager import SignalStateManager
+from logger import log
 
-# Initialize the state manager and signal checker
+# --- Initialization ---
+
+def initialize_signal_checkers():
+    """Dynamically initializes signal checker instances based on ACTIVE_SIGNALS config."""
+    checkers = []
+    for signal_class_name in ACTIVE_SIGNALS:
+        if hasattr(indicator_module, signal_class_name):
+            signal_class = getattr(indicator_module, signal_class_name)
+            checkers.append(signal_class())
+            log.info(f"Successfully initialized signal checker: {signal_class_name}")
+        else:
+            log.warning(f"Signal checker '{signal_class_name}' not found in indicators module.")
+    return checkers
+
 state_manager = SignalStateManager()
-momentum_checker = MomentumSpikeSignal()
+signal_checkers = initialize_signal_checkers()
 
 def run_check():
     """
-    Main function to run the momentum spike signal check.
+    Main function to run all active signal checks.
     """
-    symbols_to_check = get_all_usdt_futures_symbols()
-    if not symbols_to_check:
-        print("Could not fetch any symbols to check. Skipping this run.")
+    log.info(f"Starting data fetch for all symbols on the {TIMEFRAME} timeframe...")
+    all_data = get_all_binance_data_sync()
+
+    if not all_data:
+        log.warning("Could not fetch any market data. Skipping this run.")
         return
 
-    print(f"\n[{datetime.now()}] Starting check for {len(symbols_to_check)} symbols on the {TIMEFRAME} timeframe...")
+    log.info(f"Data fetched for {len(all_data)} symbols. Now checking for signals...")
 
-    for symbol in symbols_to_check:
-        # Fetch the 15-minute data for the symbol
-        df = get_binance_data(symbol)
-        
-        if df.empty:
-            # Silently skip symbols with no data to reduce log noise
-            continue
-        
-        # Check for a momentum spike signal
-        signal = momentum_checker.check(df)
-        
-        if signal:
-            print(f"--- Found potential signal for {symbol} ---")
-            print(f"    Details: {signal['primary_signal']}")
+    for symbol, df in all_data.items():
+        # Iterate through all active signal checkers
+        for checker in signal_checkers:
+            signal = checker.check(df)
             
-            # Check if the alert should be sent
-            should_send, prev_signal = state_manager.should_send_alert(symbol, signal)
-            if should_send:
-                ai_insight = get_gemini_interpretation(symbol, TIMEFRAME, signal, previous_signal=prev_signal)
-                send_discord_alert(symbol, signal, ai_insight)
-                time.sleep(2) # Small delay to avoid rate limiting
+            if signal:
+                log.info(f"Found potential signal for {symbol} using {checker.name}")
+                log.debug(f"Signal details: {signal['primary_signal']}")
+                
+                # Check if the alert should be sent
+                should_send, prev_signal = state_manager.should_send_alert(symbol, signal)
+                if should_send:
+                    ai_insight = get_gemini_interpretation(symbol, TIMEFRAME, signal, previous_signal=prev_signal)
+                    send_discord_alert(symbol, signal, ai_insight)
+                    time.sleep(2) # Small delay to avoid rate limiting
 
-    print("Check complete.")
+    log.info("Check complete.")
 
 if __name__ == "__main__":
-    print("Starting the crypto momentum spike monitor...")
-    run_check()
+    if not signal_checkers:
+        log.error("No signal checkers initialized. Please check your ACTIVE_SIGNALS configuration. Exiting.")
+    else:
+        log.info("Starting the crypto signal monitor...")
+        run_check()
     
     schedule.every(15).minutes.do(run_check)
-    print("Scheduled to run every 15 minutes.")
+    log.info("Scheduled to run every 15 minutes.")
     
     while True:
         schedule.run_pending()

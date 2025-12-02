@@ -5,10 +5,13 @@ This is an automated crypto trading signal bot that monitors all USDT perpetual 
 ## ✨ Main Features
 
 - **Comprehensive Market Monitoring**: Automatically fetches and monitors **all** USDT perpetual futures contracts on Binance, ensuring no opportunity is missed.
-- **Advanced Signal Detection**: Implements two specific, high-impact alert rules:
-    1.  **Catch the Rise (15min)**: Triggers an alert when a contract's Open Interest increases by over 5% and its price simultaneously rises by over 2% within a single 15-minute candle, capturing moments of explosive momentum.
-    2.  **Catch the Trend (15min FVG)**: Identifies Fair Value Gaps (FVGs), waits for the price to rebalance within the gap, and then triggers an alert on a confirmed trend reversal candle, allowing for strategic entries based on market structure.
-- **AI-Powered In-depth Analysis**: Each alert is enriched with an AI-generated analysis that interprets the signal in the context of the broader market, providing a professional, data-driven thesis for the potential trade.
+- **Advanced Signal Detection**: Implements a modular architecture for multiple high-impact alert rules:
+    1.  **`MomentumSpikeSignal` (Catch the Rise)**: Triggers an alert when a contract's Open Interest increases by over 5% and its price simultaneously rises by over 2% within a single 15-minute candle, capturing moments of explosive momentum.
+    2.  **`FairValueGapSignal` (Catch the Trend)**: Identifies Fair Value Gaps (FVGs), waits for the price to rebalance within the gap, and then triggers an alert on a confirmed trend reversal candle (e.g., Hammer, Shooting Star), allowing for strategic entries based on market structure.
+- **AI-Powered In-depth Analysis**: Each alert is enriched with a Gemini-powered analysis that interprets the signal in the context of the broader market, providing a professional, data-driven thesis for the potential trade.
+- **Asynchronous & Efficient**: Utilizes `asyncio` and `aiohttp` to fetch data for all symbols concurrently, significantly improving performance.
+- **Persistent State Management**: Remembers triggered signals in a `signal_state.json` file to avoid duplicate alerts even after restarts.
+- **Structured Logging**: Implements centralized logging for better monitoring and debugging in production environments.
 - **Dockerized & CI/CD Ready**: Comes with a `Dockerfile` and GitHub Actions workflow for automated building and deployment to cloud platforms, making it easy to run 24/7.
 - **Simplified Configuration**: Key parameters are easily adjustable in the `config.py` file.
 
@@ -38,8 +41,10 @@ This is an automated crypto trading signal bot that monitors all USDT perpetual 
     ```
 
 3.  **Install dependencies**:
+    This project uses Conda for environment management.
     ```bash
-    pip install -r requirements.txt
+    conda env create -f environment.yml
+    conda activate oi-bot-env
     ```
 
 4.  **Run the bot**:
