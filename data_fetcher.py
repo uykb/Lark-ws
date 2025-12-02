@@ -65,7 +65,7 @@ async def get_binance_data_async(symbol: str, session):
         return symbol, df
 
     except aiohttp.ClientError as e:
-        # log.warning(f"Error fetching data for {symbol}: {e}") # Reduce log noise for common errors
+        log.warning(f"Error fetching data for {symbol}: {e}")
         return symbol, pd.DataFrame()
     except Exception as e:
         log.error(f"An unexpected error occurred for {symbol}: {e}")
