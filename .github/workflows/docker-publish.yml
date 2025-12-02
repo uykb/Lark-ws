@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - "main"
-      - "stable"
   pull_request:
     branches: [ "main" ]
 
@@ -30,7 +29,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v4
       with:
-        images: ghcr.io/${{ github.repository_owner }}/oi-bot
+        images: ghcr.io/${{ github.repository }}
         tags: |
           # For pushes to the main branch, use 'latest' tag
           type=raw,value=latest,enable={{is_default_branch}}
