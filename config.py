@@ -20,10 +20,8 @@ MAJOR_COINS = [
     "SOLUSDT",
     "XRPUSDT",
     "DOGEUSDT",
-    "ADAUSDT",
+    "HYPEUSDT",
     "AVAXUSDT",
-    "LINKUSDT",
-    "DOTUSDT",
 ]
 # --- Indicator Thresholds ---
 # Rule 1: Catch the Rise
