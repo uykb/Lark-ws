@@ -44,6 +44,25 @@ ACTIVE_SIGNALS = [
     "FairValueGapSignal",
 ]
 
+# --- Per-Coin Configuration Overrides ---
+# Define specific thresholds for major coins.
+# If a coin is not listed here, it will use the default global thresholds defined above.
+COIN_CONFIGS = {
+    "BTCUSDT": {
+        "rise_oi_change_threshold": 0.015,   # 1.5% for BTC (Lower due to lower volatility)
+        "rise_price_change_threshold": 0.008 # 0.8%
+    },
+    "ETHUSDT": {
+        "rise_oi_change_threshold": 0.02,    # 2.0%
+        "rise_price_change_threshold": 0.01
+    },
+    # Default fallback for unlisted coins (conceptually matches global settings)
+    "DEFAULT": {
+        "rise_oi_change_threshold": 0.03,
+        "rise_price_change_threshold": 0.01
+    }
+}
+
 # --- State Management (Memory) Settings ---
 # 信号冷却时间（分钟），在此时间内，相似的信号不会重复发送
 SIGNAL_COOLDOWN_PERIOD = 60  # 60分钟 = 1小时

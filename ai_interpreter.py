@@ -4,9 +4,9 @@ import google.generativeai as genai
 from config import GEMINI_API_KEYS, GEMINI_MODEL_NAME
 from logger import log
 
-def get_gemini_interpretation(symbol: str, timeframe: str, signal_data: dict, previous_signal: dict = None):
+async def get_gemini_interpretation(symbol: str, timeframe: str, signal_data: dict, previous_signal: dict = None):
     """
-    使用 Google 官方 SDK 解读指标异动信号及其市场背景
+    使用 Google 官方 SDK 解读指标异动信号及其市场背景 (Async)
     """
     if not GEMINI_API_KEYS:
         log.warning("GEMINI_API_KEYS are not set. AI interpretation will be skipped.")
@@ -79,7 +79,8 @@ This is a new signal alert.
             genai.configure(api_key=api_key)
             model = genai.GenerativeModel(GEMINI_MODEL_NAME)
             
-            response = model.generate_content(
+            # Use the async version of generate_content
+            response = await model.generate_content_async(
                 full_prompt,
                 generation_config=genai.types.GenerationConfig(
                     temperature=0.6

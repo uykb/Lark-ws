@@ -21,16 +21,22 @@ def _create_market_snapshot(df: pd.DataFrame, primary_signal: dict):
         "long_short_ratio": f"{latest_indicators['ls_ratio'].iloc[0]:.3f}"
     }
     
-    # 3. Calculate additional technical indicators (RSI, EMA)
+    # 3. Calculate additional technical indicators (RSI, EMA, ATR)
     df.ta.rsi(length=14, append=True)
     df.ta.ema(length=12, append=True)
     df.ta.ema(length=26, append=True)
+    df.ta.atr(length=14, append=True)
     
     latest_tech_indicators = df.tail(1)
+    
+    # Safely get ATR, handling potential NaN for short data
+    atr_val = latest_tech_indicators['ATRr_14'].iloc[0] if 'ATRr_14' in latest_tech_indicators else 0.0
+    
     tech_indicators = {
         "rsi_14": f"{latest_tech_indicators['RSI_14'].iloc[0]:.2f}",
         "ema_12": f"{latest_tech_indicators['EMA_12'].iloc[0]:.2f}",
         "ema_26": f"{latest_tech_indicators['EMA_26'].iloc[0]:.2f}",
+        "atr_14": f"{atr_val:.4f}"
     }
 
     return {
@@ -55,7 +61,7 @@ class BaseSignal(ABC):
         pass
 
     @abstractmethod
-    def check(self, df: pd.DataFrame):
+    def check(self, df: pd.DataFrame, symbol: str = None):
         """
         Checks for the signal in the given DataFrame.
         Returns a signal data dictionary if a signal is found, otherwise None.
@@ -65,15 +71,25 @@ class BaseSignal(ABC):
 class MomentumSpikeSignal(BaseSignal):
     """
     Detects a momentum spike based on significant changes in both price and open interest.
-    Triggers when |OI Change| > 5% and |Price Change| > 2% in a single 15-minute candle.
+    Triggers when |OI Change| > Threshold and |Price Change| > Threshold.
+    Thresholds are dynamic based on COIN_CONFIGS.
     """
     @property
     def name(self):
         return "Price/OI Momentum Spike"
 
-    def check(self, df: pd.DataFrame):
+    def check(self, df: pd.DataFrame, symbol: str = None):
         if len(df) < 2:
             return None
+            
+        # Determine thresholds
+        oi_threshold = RISE_OI_CHANGE_THRESHOLD
+        price_threshold = RISE_PRICE_CHANGE_THRESHOLD
+        
+        if symbol and symbol in COIN_CONFIGS:
+            config = COIN_CONFIGS[symbol]
+            oi_threshold = config.get("rise_oi_change_threshold", oi_threshold)
+            price_threshold = config.get("rise_price_change_threshold", price_threshold)
             
         latest = df.iloc[-1]
         previous = df.iloc[-2]
@@ -82,7 +98,7 @@ class MomentumSpikeSignal(BaseSignal):
         price_change = (latest['close'] / previous['close']) - 1
         oi_change = (latest['oi'] / previous['oi']) - 1
         
-        if abs(oi_change) > RISE_OI_CHANGE_THRESHOLD and abs(price_change) > RISE_PRICE_CHANGE_THRESHOLD:
+        if abs(oi_change) > oi_threshold and abs(price_change) > price_threshold:
             
             direction = "Bullish" if price_change > 0 else "Bearish"
             
@@ -92,7 +108,8 @@ class MomentumSpikeSignal(BaseSignal):
                 "price_change": f"{price_change:+.2%}",
                 "oi_change": f"{oi_change:+.2%}",
                 "current_price": f"{latest['close']:.2f}",
-                "current_oi": f"${latest['oi']:,.0f}"
+                "current_oi": f"${latest['oi']:,.0f}",
+                "thresholds_used": f"Price > {price_threshold:.1%}, OI > {oi_threshold:.1%}"
             }
             return _create_market_snapshot(df, signal)
         return None
@@ -106,7 +123,7 @@ class FairValueGapSignal(BaseSignal):
     def name(self):
         return "Fair Value Gap Rebalance"
 
-    def check(self, df: pd.DataFrame):
+    def check(self, df: pd.DataFrame, symbol: str = None):
         if len(df) < 5:  # Need at least 5 candles to detect FVG and subsequent moves
             return None
 
