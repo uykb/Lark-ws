@@ -3,7 +3,12 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 # --- API Keys & Webhooks ---
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+_keys_str = os.getenv("GEMINI_API_KEY", "")
+# Split by comma and strip whitespace, filter out empty strings
+GEMINI_API_KEYS = [k.strip() for k in _keys_str.split(',') if k.strip()]
+# For backward compatibility or single-key usage, take the first one if available
+GEMINI_API_KEY = GEMINI_API_KEYS[0] if GEMINI_API_KEYS else None
+
 DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 
 # --- Gemini Model Settings ---

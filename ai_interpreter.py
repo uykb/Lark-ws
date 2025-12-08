@@ -1,21 +1,16 @@
 import json
+import random
 import google.generativeai as genai
-from config import GEMINI_API_KEY, GEMINI_MODEL_NAME
+from config import GEMINI_API_KEYS, GEMINI_MODEL_NAME
 from logger import log
 
 def get_gemini_interpretation(symbol: str, timeframe: str, signal_data: dict, previous_signal: dict = None):
     """
     使用 Google 官方 SDK 解读指标异动信号及其市场背景
     """
-    if not GEMINI_API_KEY:
-        log.warning("GEMINI_API_KEY is not set. AI interpretation will be skipped.")
-        return "AI interpretation unavailable (API Key missing)."
-
-    try:
-        genai.configure(api_key=GEMINI_API_KEY)
-    except Exception as e:
-        log.error(f"Failed to configure Google Gemini SDK: {e}")
-        return "AI interpretation unavailable (Configuration failed)."
+    if not GEMINI_API_KEYS:
+        log.warning("GEMINI_API_KEYS are not set. AI interpretation will be skipped.")
+        return "AI interpretation unavailable (API Keys missing)."
 
     # 为了可读性，将数据包拆分
     primary_signal = signal_data.get('primary_signal', {})
@@ -69,21 +64,35 @@ This is a new signal alert.
 {klines_str}
 """
 
-    try:
-        model = genai.GenerativeModel(GEMINI_MODEL_NAME)
-        
-        # Combine system prompt and user prompt
-        full_prompt = f"{system_prompt}\n\n{user_prompt}"
-        
-        response = model.generate_content(
-            full_prompt,
-            generation_config=genai.types.GenerationConfig(
-                temperature=0.6
+    # Combine system prompt and user prompt
+    full_prompt = f"{system_prompt}\n\n{user_prompt}"
+
+    # --- API Key Rotation Logic ---
+    # Create a copy of keys to avoid modifying the global list if we were to pop
+    keys_to_try = list(GEMINI_API_KEYS)
+    # Shuffle the keys to distribute load (simple load balancing)
+    random.shuffle(keys_to_try)
+
+    for i, api_key in enumerate(keys_to_try):
+        try:
+            # Configure GenAI with the current key
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel(GEMINI_MODEL_NAME)
+            
+            response = model.generate_content(
+                full_prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.6
+                )
             )
-        )
-        
-        log.info(f"Successfully received AI interpretation for {symbol}.")
-        return response.text
-    except Exception as e:
-        log.error(f"Error calling Google Gemini API for {symbol}: {e}")
-        return "AI interpretation failed."
+            
+            log.info(f"Successfully received AI interpretation for {symbol} using Key #{i+1} (masked: ...{api_key[-4:]})")
+            return response.text
+
+        except Exception as e:
+            log.warning(f"Error calling Google Gemini API with Key #{i+1} (masked: ...{api_key[-4:]}): {e}. Trying next key...")
+            continue
+    
+    # If we exit the loop, all keys failed
+    log.error("All Gemini API keys failed. AI interpretation unavailable.")
+    return "AI interpretation unavailable (All API keys failed)."
