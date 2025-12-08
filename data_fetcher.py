@@ -72,7 +72,7 @@ async def get_binance_data_async(symbol: str, session):
         return symbol, pd.DataFrame()
 
 async def get_all_binance_data_async():
-    """Fetches data for all USDT futures symbols in parallel."""
+    """Fetches data for monitored symbols in parallel."""
     connector = aiohttp.TCPConnector(ssl=False)
     async with aiohttp.ClientSession(connector=connector) as session:
         symbols = await get_all_usdt_futures_symbols(session)

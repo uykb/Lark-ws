@@ -29,7 +29,7 @@ async def run_check():
     """
     Main function to run all active signal checks.
     """
-    log.info(f"Starting data fetch for all symbols on the {TIMEFRAME} timeframe...")
+    log.info(f"Starting data fetch for monitored symbols on the {TIMEFRAME} timeframe...")
     all_data = await get_all_binance_data_async()
 
     if not all_data:

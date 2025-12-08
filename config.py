@@ -17,7 +17,8 @@ GEMINI_MODEL_NAME = "gemini-2.5-flash-lite"
 TIMEFRAME = '15m'                # K线周期
 DATA_FETCH_LIMIT = 1000          # 每次获取数据条数
 
-# A list of major coins to monitor. If empty, the bot will scan all USDT perpetual futures.
+# A list of major coins to monitor.
+# Only the coins listed here will be monitored.
 MAJOR_COINS = [
     "BTCUSDT",
     "ETHUSDT",
