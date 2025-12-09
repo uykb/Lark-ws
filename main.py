@@ -77,10 +77,10 @@ async def main_loop():
         except Exception as e:
             log.error(f"Error in main loop: {e}")
         
-        # Calculate next run time (15 minutes interval)
+        # Calculate next run time (1 hour interval)
         # Using a simple sleep for now, can be made more precise if needed
-        log.info("Sleeping for 15 minutes...")
-        await asyncio.sleep(15 * 60) 
+        log.info("Sleeping for 1 hour...")
+        await asyncio.sleep(60 * 60) # 1 hour 
 
 if __name__ == "__main__":
     try:

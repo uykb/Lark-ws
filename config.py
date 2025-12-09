@@ -14,7 +14,7 @@ DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 # --- Gemini Model Settings ---
 GEMINI_MODEL_NAME = "gemini-2.5-flash-lite"
 # --- Monitoring Settings ---
-TIMEFRAME = '15m'                # K线周期
+TIMEFRAME = '1h'                # K线周期
 DATA_FETCH_LIMIT = 1000          # 每次获取数据条数
 
 # A list of major coins to monitor.
