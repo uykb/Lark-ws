@@ -22,6 +22,7 @@ DATA_FETCH_LIMIT = 1000          # 每次获取数据条数
 MAJOR_COINS = [
     "BTCUSDT",
     "ETHUSDT",
+    "SOLUSDT",
     "AVAXUSDT",
 ]
 # --- Indicator Thresholds ---
