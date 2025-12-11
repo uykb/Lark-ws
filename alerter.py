@@ -1,5 +1,7 @@
 import aiohttp
 import json
+import ssl
+import certifi
 from datetime import datetime
 from config import LARK_WEBHOOK_URL
 from logger import log
@@ -195,9 +197,12 @@ async def send_lark_alert(symbol: str, signal_data: dict, ai_interpretation: str
         "msg_type": "interactive",
         "card": card
     }
+
+    # Create SSL context with certifi
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
     
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ssl_context)) as session:
             async with session.post(webhook_url, json=payload) as response:
                 if response.status == 200:
                     data = await response.json()

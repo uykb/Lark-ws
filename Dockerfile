@@ -5,6 +5,11 @@ FROM mambaorg/micromamba:1.5.6 as builder
 # 复制环境定义文件
 COPY --chown=$MAMBA_USER:$MAMBA_USER environment.yml /tmp/environment.yml
 
+# 安装基础工具，包括 ca-certificates
+USER root
+RUN apt-get update && apt-get install -y ca-certificates openssl && rm -rf /var/lib/apt/lists/*
+USER $MAMBA_USER
+
 # 在一个单独的前缀中创建环境，并安装所有依赖
 RUN micromamba create -p /tmp/env -f /tmp/environment.yml && \
     micromamba clean --all --yes
@@ -12,6 +17,11 @@ RUN micromamba create -p /tmp/env -f /tmp/environment.yml && \
 # ---- Final Stage ----
 # 使用一个非常小的 "distroless" 风格镜像作为最终运行环境
 FROM mambaorg/micromamba:1.5.6 as final
+
+# 安装 ca-certificates 到最终镜像 (因为 final 也是基于 debian/alpine)
+USER root
+RUN apt-get update && apt-get install -y ca-certificates openssl && rm -rf /var/lib/apt/lists/*
+USER $MAMBA_USER
 
 # 从构建阶段复制已安装好的环境
 COPY --from=builder /tmp/env /opt/conda/

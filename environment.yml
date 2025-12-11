@@ -10,3 +10,4 @@ dependencies:
   - python-dotenv
   - schedule
   - pandas-ta
+  - certifi

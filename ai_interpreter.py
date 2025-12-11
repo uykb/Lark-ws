@@ -1,5 +1,7 @@
 import json
 import aiohttp
+import ssl
+import certifi
 from config import DEEPSEEK_API_KEY, DEEPSEEK_MODEL_NAME, DEEPSEEK_API_URL
 from logger import log
 
@@ -74,11 +76,14 @@ This is a new signal alert.
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ],
-        "temperature": 1.0 # DeepSeek recommends 1.0 or higher for creative/detailed outputs sometimes, but 0.6 is safe for analysis. Sticking to simple default.
+        "temperature": 1.0 
     }
 
+    # Create SSL context with certifi
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ssl_context)) as session:
             async with session.post(DEEPSEEK_API_URL, headers=headers, json=payload) as response:
                 if response.status == 200:
                     data = await response.json()
