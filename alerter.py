@@ -6,42 +6,57 @@ from logger import log
 
 async def send_lark_alert(symbol: str, signal_data: dict, ai_interpretation: str):
     """
-    构建并发送一个 Lark (飞书) 交互式卡片消息
+    构建并发送一个美化后的 Lark (飞书) 交互式卡片消息
     """
     webhook_url = LARK_WEBHOOK_URL
     if not webhook_url:
         log.warning("Lark webhook URL not set. Cannot send alert.")
         return
     
-    # 从新的数据结构中提取主要触发信号
-    primary_signal = signal_data.get('primary_signal', {})
-    indicator_name = primary_signal.get('indicator', 'N/A')
+    # 提取数据
+    primary = signal_data.get('primary_signal', {})
+    indicator_name = primary.get('indicator', 'N/A')
+    signal_type = primary.get('signal_type', 'N/A')
     
-    # 根据指标类型设置卡片标题颜色
-    # Lark card templates: blue, wathet, turquoise, green, yellow, orange, red, carmine, violet, purple, indigo, grey
-    header_template = "blue"
-    if "Open Interest" in indicator_name:
-        header_template = "blue"
-    elif "Volume" in indicator_name:
-        header_template = "orange"
-    elif "Ratio" in indicator_name:
-        header_template = "red"
-    elif "Gap" in indicator_name:
-        header_template = "violet"
+    # 1. 颜色与 Emoji 逻辑
+    if 'Bullish' in signal_type:
+        header_template = 'green'
+        title_emoji = "🟢"
+    elif 'Bearish' in signal_type:
+        header_template = 'red'
+        title_emoji = "🔴"
+    else:
+        header_template = 'blue'
+        title_emoji = "🔵"
 
-    # 构建主要信号详情
-    details_md = ""
-    for key, value in primary_signal.items():
-        if key not in ['indicator', 'signal_type']:
-            details_md += f"**{key.replace('_', ' ').title()}:** {value}\n"
+    # 2. 构建核心指标列 (Column Set)
+    # 筛选出一些关键字段展示在网格中
+    key_metrics = []
+    excluded_keys = ['indicator', 'signal_type', 'thresholds_used', 'confirmation_candle']
     
-    # 构建卡片内容
+    for k, v in primary.items():
+        if k not in excluded_keys:
+            key_metrics.append(f"**{k.replace('_', ' ').title()}**\n{v}")
+            
+    # 如果有 thresholds_used，单独放一行
+    threshold_info = primary.get('thresholds_used', '')
+
+    # 将指标分为两列
+    col1_text = ""
+    col2_text = ""
+    for i, metric in enumerate(key_metrics):
+        if i % 2 == 0:
+            col1_text += metric + "\n\n"
+        else:
+            col2_text += metric + "\n\n"
+
+    # 3. 构建卡片元素
     elements = [
         {
             "tag": "div",
             "text": {
                 "tag": "lark_md",
-                "content": f"**Indicator:** {indicator_name}\n**Type:** {primary_signal.get('signal_type', 'N/A')}"
+                "content": f"**Signal Type:** {signal_type}\n**Strategy:** {indicator_name}"
             }
         },
         {
@@ -51,20 +66,70 @@ async def send_lark_alert(symbol: str, signal_data: dict, ai_interpretation: str
             "tag": "div",
             "text": {
                 "tag": "lark_md",
-                "content": details_md.strip()
+                "content": "📊 **Signal Metrics**"
             }
+        },
+        {
+            "tag": "column_set",
+            "flex_mode": "none",
+            "background_style": "grey",
+            "columns": [
+                {
+                    "tag": "column",
+                    "width": "weighted",
+                    "weight": 1,
+                    "vertical_align": "top",
+                    "elements": [
+                        {
+                            "tag": "div",
+                            "text": {
+                                "tag": "lark_md",
+                                "content": col1_text.strip()
+                            }
+                        }
+                    ]
+                },
+                {
+                    "tag": "column",
+                    "width": "weighted",
+                    "weight": 1,
+                    "vertical_align": "top",
+                    "elements": [
+                        {
+                            "tag": "div",
+                            "text": {
+                                "tag": "lark_md",
+                                "content": col2_text.strip()
+                            }
+                        }
+                    ]
+                }
+            ]
         }
     ]
 
-    # 添加 AI 解读
+    # 如果有阈值信息，补充在后面
+    if threshold_info:
+        elements.append({
+            "tag": "div",
+            "text": {
+                "tag": "lark_md",
+                "content": f"ℹ️ *Thresholds: {threshold_info}*"
+            }
+        })
+
+    # 4. AI 解读部分
     if ai_interpretation:
         elements.append({"tag": "hr"})
+        elements.append({
+            "tag": "div",
+            "text": {
+                "tag": "lark_md",
+                "content": "🤖 **DeepSeek AI Analysis**"
+            }
+        })
         
-        # 简单解析 AI 解读，或者直接作为一大段文本放入
-        # Lark Markdown 支持基本的加粗等
-        ai_content = ai_interpretation
-        
-        # 尝试美化分段
+        # 美化 AI 文本
         formatted_ai = ""
         sections = ai_interpretation.split('【')
         for section in sections:
@@ -72,7 +137,7 @@ async def send_lark_alert(symbol: str, signal_data: dict, ai_interpretation: str
                 parts = section.split('】', 1)
                 title = parts[0]
                 content = parts[1].strip()
-                formatted_ai += f"**🤖 {title}**\n{content}\n\n"
+                formatted_ai += f"**📌 {title}**\n{content}\n\n"
             else:
                 if section.strip():
                     formatted_ai += section.strip() + "\n"
@@ -81,26 +146,45 @@ async def send_lark_alert(symbol: str, signal_data: dict, ai_interpretation: str
             "tag": "div",
             "text": {
                 "tag": "lark_md",
-                "content": formatted_ai if formatted_ai else ai_content
+                "content": formatted_ai if formatted_ai else ai_interpretation
             }
         })
 
-    # 添加底部时间和版权
+    # 5. 底部按钮 (跳转到 Binance)
+    binance_url = f"https://www.binance.com/en/futures/{symbol}"
+    elements.append({"tag": "hr"})
+    elements.append({
+        "tag": "action",
+        "actions": [
+            {
+                "tag": "button",
+                "text": {
+                    "tag": "plain_text",
+                    "content": "📈 View on Binance"
+                },
+                "type": "primary",
+                "url": binance_url
+            }
+        ]
+    })
+
+    # 底部时间
     elements.append({
         "tag": "note",
         "elements": [
             {
                 "tag": "plain_text",
-                "content": f"Bot by YourName | {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+                "content": f"Bot: DeepSeek-V3 | Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
             }
         ]
     })
 
+    # 组装最终 Card
     card = {
         "header": {
             "title": {
                 "tag": "plain_text",
-                "content": f"🚨 {symbol} 市场异动告警"
+                "content": f"{title_emoji} {symbol} Market Alert"
             },
             "template": header_template
         },
