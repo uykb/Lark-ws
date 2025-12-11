@@ -2,19 +2,18 @@
 import os
 from dotenv import load_dotenv
 load_dotenv()
+
 # --- API Keys & Webhooks ---
-_keys_str = os.getenv("GEMINI_API_KEY", "")
-# Split by comma and strip whitespace, filter out empty strings
-GEMINI_API_KEYS = [k.strip() for k in _keys_str.split(',') if k.strip()]
-# For backward compatibility or single-key usage, take the first one if available
-GEMINI_API_KEY = GEMINI_API_KEYS[0] if GEMINI_API_KEYS else None
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
-DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
+LARK_WEBHOOK_URL = os.getenv("LARK_WEBHOOK_URL")
 
-# --- Gemini Model Settings ---
-GEMINI_MODEL_NAME = "gemini-2.5-flash-lite"
+# --- AI Model Settings ---
+DEEPSEEK_MODEL_NAME = "deepseek-chat"
+DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
+
 # --- Monitoring Settings ---
-TIMEFRAME = '1h'                # K线周期
+TIMEFRAME = '15m'               # K线周期
 DATA_FETCH_LIMIT = 1000          # 每次获取数据条数
 
 # A list of major coins to monitor.
@@ -62,7 +61,7 @@ COIN_CONFIGS = {
 
 # --- State Management (Memory) Settings ---
 # 信号冷却时间（分钟），在此时间内，相似的信号不会重复发送
-SIGNAL_COOLDOWN_PERIOD = 60  # 60分钟 = 1小时
+SIGNAL_COOLDOWN_PERIOD = 60  # 60分钟
 
 # Z-Score 类信号的显著变化阈值
 # 只有当新的 Z-Score 与上次发送的 Z-Score 差值的绝对值大于此阈值时，才被视为新信号

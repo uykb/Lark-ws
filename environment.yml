@@ -11,4 +11,3 @@ dependencies:
   - schedule
   - pandas-ta
   - pip:
-    - google-generativeai

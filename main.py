@@ -3,8 +3,8 @@ from datetime import datetime
 from config import TIMEFRAME, ACTIVE_SIGNALS
 from data_fetcher import get_all_binance_data_async
 import indicators as indicator_module
-from ai_interpreter import get_gemini_interpretation
-from alerter import send_discord_alert
+from ai_interpreter import get_ai_interpretation
+from alerter import send_lark_alert
 from state_manager import SignalStateManager
 from logger import log
 
@@ -51,10 +51,10 @@ async def run_check():
                 should_send, prev_signal = state_manager.should_send_alert(symbol, signal)
                 if should_send:
                     # Async AI interpretation
-                    ai_insight = await get_gemini_interpretation(symbol, TIMEFRAME, signal, previous_signal=prev_signal)
+                    ai_insight = await get_ai_interpretation(symbol, TIMEFRAME, signal, previous_signal=prev_signal)
                     
-                    # Run synchronous Discord alert in a separate thread to avoid blocking
-                    await asyncio.to_thread(send_discord_alert, symbol, signal, ai_insight)
+                    # Async Lark alert
+                    await send_lark_alert(symbol, signal, ai_insight)
                     
                     # Small delay to avoid hitting rate limits if multiple signals trigger at once
                     await asyncio.sleep(2) 
@@ -77,10 +77,9 @@ async def main_loop():
         except Exception as e:
             log.error(f"Error in main loop: {e}")
         
-        # Calculate next run time (1 hour interval)
-        # Using a simple sleep for now, can be made more precise if needed
-        log.info("Sleeping for 1 hour...")
-        await asyncio.sleep(60 * 60) # 1 hour 
+        # Calculate next run time (15 minutes interval)
+        log.info("Sleeping for 15 minutes...")
+        await asyncio.sleep(15 * 60) 
 
 if __name__ == "__main__":
     try:

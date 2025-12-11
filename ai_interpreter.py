@@ -1,16 +1,15 @@
 import json
-import random
-import google.generativeai as genai
-from config import GEMINI_API_KEYS, GEMINI_MODEL_NAME
+import aiohttp
+from config import DEEPSEEK_API_KEY, DEEPSEEK_MODEL_NAME, DEEPSEEK_API_URL
 from logger import log
 
-async def get_gemini_interpretation(symbol: str, timeframe: str, signal_data: dict, previous_signal: dict = None):
+async def get_ai_interpretation(symbol: str, timeframe: str, signal_data: dict, previous_signal: dict = None):
     """
-    使用 Google 官方 SDK 解读指标异动信号及其市场背景 (Async)
+    使用 DeepSeek API 解读指标异动信号及其市场背景 (Async)
     """
-    if not GEMINI_API_KEYS:
-        log.warning("GEMINI_API_KEYS are not set. AI interpretation will be skipped.")
-        return "AI interpretation unavailable (API Keys missing)."
+    if not DEEPSEEK_API_KEY:
+        log.warning("DEEPSEEK_API_KEY is not set. AI interpretation will be skipped.")
+        return "AI interpretation unavailable (API Key missing)."
 
     # 为了可读性，将数据包拆分
     primary_signal = signal_data.get('primary_signal', {})
@@ -64,36 +63,33 @@ This is a new signal alert.
 {klines_str}
 """
 
-    # Combine system prompt and user prompt
-    full_prompt = f"{system_prompt}\n\n{user_prompt}"
+    headers = {
+        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+        "Content-Type": "application/json"
+    }
 
-    # --- API Key Rotation Logic ---
-    # Create a copy of keys to avoid modifying the global list if we were to pop
-    keys_to_try = list(GEMINI_API_KEYS)
-    # Shuffle the keys to distribute load (simple load balancing)
-    random.shuffle(keys_to_try)
+    payload = {
+        "model": DEEPSEEK_MODEL_NAME,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "temperature": 1.0 # DeepSeek recommends 1.0 or higher for creative/detailed outputs sometimes, but 0.6 is safe for analysis. Sticking to simple default.
+    }
 
-    for i, api_key in enumerate(keys_to_try):
-        try:
-            # Configure GenAI with the current key
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(GEMINI_MODEL_NAME)
-            
-            # Use the async version of generate_content
-            response = await model.generate_content_async(
-                full_prompt,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.6
-                )
-            )
-            
-            log.info(f"Successfully received AI interpretation for {symbol} using Key #{i+1} (masked: ...{api_key[-4:]})")
-            return response.text
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(DEEPSEEK_API_URL, headers=headers, json=payload) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    interpretation = data['choices'][0]['message']['content']
+                    log.info(f"Successfully received AI interpretation for {symbol} using DeepSeek.")
+                    return interpretation
+                else:
+                    error_text = await response.text()
+                    log.error(f"Error calling DeepSeek API: {response.status} - {error_text}")
+                    return f"AI interpretation unavailable (API Error: {response.status})."
 
-        except Exception as e:
-            log.warning(f"Error calling Google Gemini API with Key #{i+1} (masked: ...{api_key[-4:]}): {e}. Trying next key...")
-            continue
-    
-    # If we exit the loop, all keys failed
-    log.error("All Gemini API keys failed. AI interpretation unavailable.")
-    return "AI interpretation unavailable (All API keys failed)."
+    except Exception as e:
+        log.error(f"Exception calling DeepSeek API: {e}")
+        return f"AI interpretation unavailable (Exception: {e})."
