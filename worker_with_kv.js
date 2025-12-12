@@ -258,12 +258,13 @@ export default {
         if (!id) return new Response('Missing Message ID', { status: 400 });
         
         // Retrieve data from KV
-        // IMPORTANT: You must bind a KV Namespace to the variable 'MSG_STORE'
-        if (!env.MSG_STORE) {
+        // Support both MSG_STORE and LARK_MSG_STORE variable names
+        const kv = env.MSG_STORE || env.LARK_MSG_STORE;
+        if (!kv) {
             return new Response('Server Error: KV MSG_STORE not bound.', { status: 500 });
         }
 
-        const dataStr = await env.MSG_STORE.get(id);
+        const dataStr = await kv.get(id);
         if (!dataStr) {
             return new Response('Message expired or not found.', { status: 404 });
         }
