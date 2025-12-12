@@ -58,6 +58,7 @@ class SignalStateManager:
 
         last_timestamp = last_signal_info['timestamp']
         last_signal_data = last_signal_info['signal_data']['primary_signal']
+        current_signal_data = signal['primary_signal']
         
         # 2. Check if the cooldown period has passed for the specific signal type.
         # FVG specific cooldown logic
@@ -104,7 +105,6 @@ class SignalStateManager:
             return True, last_signal_data
             
         # 3. Within the cooldown, check if the signal has changed significantly.
-        current_signal_data = signal['primary_signal']
 
         # 3a. For Z-Score type signals
         if 'z_score' in current_signal_data:
