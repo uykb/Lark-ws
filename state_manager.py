@@ -1,7 +1,7 @@
 import time
 import json
 import os
-from config import SIGNAL_COOLDOWN_PERIOD, Z_SCORE_CHANGE_THRESHOLD, PERCENTAGE_CHANGE_THRESHOLD
+from config import SIGNAL_COOLDOWN_PERIOD, Z_SCORE_CHANGE_THRESHOLD, PERCENTAGE_CHANGE_THRESHOLD, FVG_COOLDOWN_PERIOD_MINUTES, FVG_PRICE_TOLERANCE_PERCENT
 from logger import log
 
 class SignalStateManager:
@@ -59,9 +59,47 @@ class SignalStateManager:
         last_timestamp = last_signal_info['timestamp']
         last_signal_data = last_signal_info['signal_data']['primary_signal']
         
-        # 2. Check if the cooldown period has passed.
+        # 2. Check if the cooldown period has passed for the specific signal type.
+        # FVG specific cooldown logic
+        if current_signal_data.get('indicator') == "Fair Value Gap Rebalance":
+            if (current_time - last_timestamp) / 60 < FVG_COOLDOWN_PERIOD_MINUTES:
+                log.debug(f"FVG signal {unique_key} is within its specific cooldown period.")
+                # Compare FVG price levels and confirmation candle
+                try:
+                    last_fvg_top = float(last_signal_data.get('fvg_top', '0'))
+                    last_fvg_bottom = float(last_signal_data.get('fvg_bottom', '0'))
+                    current_fvg_top = float(current_signal_data.get('fvg_top', '0'))
+                    current_fvg_bottom = float(current_signal_data.get('fvg_bottom', '0'))
+                    
+                    last_conf_candle = last_signal_data.get('confirmation_candle')
+                    current_conf_candle = current_signal_data.get('confirmation_candle')
+
+                    # Calculate midpoints for comparison robustness
+                    last_fvg_mid = (last_fvg_top + last_fvg_bottom) / 2
+                    current_fvg_mid = (current_fvg_top + current_fvg_bottom) / 2
+
+                    # Calculate percentage difference for FVG midpoints
+                    # Avoid division by zero
+                    if last_fvg_mid != 0:
+                        fvg_mid_diff_percent = abs((current_fvg_mid - last_fvg_mid) / last_fvg_mid) * 100
+                    else: # If last_fvg_mid is zero, and current_fvg_mid is also zero, they are same. Otherwise, they are different.
+                        fvg_mid_diff_percent = 0 if current_fvg_mid == 0 else float('inf')
+                    
+                    if fvg_mid_diff_percent < FVG_PRICE_TOLERANCE_PERCENT and \
+                       last_conf_candle == current_conf_candle:
+                        log.info(f"FVG signal {unique_key} suppressed: within cooldown, similar price levels (midpoint diff {fvg_mid_diff_percent:.2f}%) and same confirmation candle.")
+                        return False, last_signal_data
+
+                except (ValueError, TypeError) as e:
+                    log.warning(f"Error parsing FVG data for comparison for {unique_key}: {e}")
+            else:
+                log.info(f"FVG signal {unique_key} passed its specific cooldown period ({FVG_COOLDOWN_PERIOD_MINUTES} min), allowing send.")
+                self._update_state(unique_key, signal)
+                return True, last_signal_data
+        
+        # General cooldown logic for other signal types or if FVG specific cooldown passed
         if (current_time - last_timestamp) / 60 > SIGNAL_COOLDOWN_PERIOD:
-            log.info(f"Signal {unique_key} has passed the cooldown period, allowing send.")
+            log.info(f"Signal {unique_key} has passed the general cooldown period, allowing send.")
             self._update_state(unique_key, signal)
             return True, last_signal_data
             

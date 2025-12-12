@@ -64,6 +64,14 @@ COIN_CONFIGS = {
 # 设置为 0 表示禁用冷却时间，每次触发都发送
 SIGNAL_COOLDOWN_PERIOD = 0  
 
+# FVG 信号的专属冷却时间（分钟）。
+# 在此时间内，如果 FVG 的价格区间与上次触发的 FVG 价格区间相近，则不会重复发送。
+FVG_COOLDOWN_PERIOD_MINUTES = 60 # e.g., 60 minutes
+
+# FVG 信号的价格容忍度百分比。
+# 如果新的 FVG 的 fvg_top 和 fvg_bottom 与上次的 FVG 的 top/bottom 都相差小于此百分比，则视为“相同”的 FVG。
+FVG_PRICE_TOLERANCE_PERCENT = 0.05 # e.g., 0.05%
+
 # Z-Score 类信号的显著变化阈值
 # 只有当新的 Z-Score 与上次发送的 Z-Score 差值的绝对值大于此阈值时，才被视为新信号
 Z_SCORE_CHANGE_THRESHOLD = 0.5
