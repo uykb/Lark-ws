@@ -127,7 +127,7 @@ export default {
 
     // 2. Construct View URL
     // Ensure viewBaseUrl doesn't have trailing slash for consistency
-    const cleanBaseUrl = viewBaseUrl.replace(///$/, '');
+    const cleanBaseUrl = viewBaseUrl.replace(/\/\$/, '');
     const detailUrl = `${cleanBaseUrl}/read?id=${msgId}`;
 
     // 3. Send WX
