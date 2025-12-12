@@ -22,6 +22,14 @@ MAJOR_COINS = [
     "BTCUSDT",
     "ETHUSDT",
     "SOLUSDT",
+    "XRPUSDT",
+    "BNBUSDT",
+    "DOGEUSDT",
+    "ADAUSDT",
+    "BCHUSDT",
+    "HYPEUSDT",
+    "LINKUSDT",
+    "ZECUSDT",
     "AVAXUSDT",
 ]
 # --- Indicator Thresholds ---
