@@ -43,7 +43,6 @@ RISE_PRICE_CHANGE_THRESHOLD = 0.01 # Price a single period change threshold (1%)
 # --- Active Signals ---
 # A list of signal class names to be activated.
 ACTIVE_SIGNALS = [
-    "MomentumSpikeSignal",
     "FairValueGapSignal",
 ]
 
