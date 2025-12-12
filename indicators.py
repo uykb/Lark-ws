@@ -22,10 +22,15 @@ def _create_market_snapshot(df: pd.DataFrame, primary_signal: dict):
     }
     
     # 3. Calculate additional technical indicators (RSI, EMA, ATR)
-    df.ta.rsi(length=14, append=True)
-    df.ta.ema(length=12, append=True)
-    df.ta.ema(length=26, append=True)
-    df.ta.atr(length=14, append=True)
+    # Optimize: Check if columns exist to avoid redundant calculation
+    if 'RSI_14' not in df.columns:
+        df.ta.rsi(length=14, append=True)
+    if 'EMA_12' not in df.columns:
+        df.ta.ema(length=12, append=True)
+    if 'EMA_26' not in df.columns:
+        df.ta.ema(length=26, append=True)
+    if 'ATRr_14' not in df.columns:
+        df.ta.atr(length=14, append=True)
     
     latest_tech_indicators = df.tail(1)
     

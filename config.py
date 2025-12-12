@@ -38,8 +38,7 @@ RISE_OI_CHANGE_THRESHOLD = 0.03    # OI a single period change threshold (3%)
 RISE_PRICE_CHANGE_THRESHOLD = 0.01 # Price a single period change threshold (1%)
 
 # Rule 2: Catch the Trend (FVG)
-FVG_REBALANCE_THRESHOLD = 0.5      # Price must retrace at least 50% into the FVG
-FVG_CONFIRMATION_CANDLE_TYPE = 'hammer' # 'hammer', 'shooting_star', 'engulfing', etc.
+# FVG config is now handled within the class or via specific new constants if needed
 
 # --- Active Signals ---
 # A list of signal class names to be activated.

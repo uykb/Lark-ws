@@ -85,11 +85,3 @@ async def get_all_binance_data_async():
         # Return a dictionary of {symbol: dataframe}
         return {symbol: df for symbol, df in results if not df.empty}
 
-# --- Synchronous Wrapper for compatibility with existing main.py structure ---
-def get_all_binance_data_sync():
-    """Synchronous wrapper to run the async data fetching process."""
-    try:
-        return asyncio.run(get_all_binance_data_async())
-    except Exception as e:
-        log.error(f"Error running the async data fetcher: {e}")
-        return {}
