@@ -4,7 +4,7 @@ from config import TIMEFRAME, ACTIVE_SIGNALS
 from data_fetcher import get_all_binance_data_async
 import indicators as indicator_module
 from ai_interpreter import get_ai_interpretation
-from alerter import send_lark_alert
+from alerter import send_all_alerts
 from state_manager import SignalStateManager
 from logger import log
 
@@ -54,7 +54,7 @@ async def run_check():
                     ai_insight = await get_ai_interpretation(symbol, TIMEFRAME, signal, previous_signal=prev_signal)
                     
                     # Async Lark alert
-                    await send_lark_alert(symbol, signal, ai_insight)
+                    await send_all_alerts(symbol, signal, ai_insight)
                     
                     # Small delay to avoid hitting rate limits if multiple signals trigger at once
                     await asyncio.sleep(2) 

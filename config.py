@@ -8,6 +8,9 @@ DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
 LARK_WEBHOOK_URL = os.getenv("LARK_WEBHOOK_URL")
 
+WX_WEBHOOK_URL = "https://wxpush.uykb.workers.dev/wxsend"
+WX_WEBHOOK_AUTH = "uykb"
+
 # --- AI Model Settings ---
 DEEPSEEK_MODEL_NAME = "deepseek-chat"
 DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"

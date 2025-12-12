@@ -2,9 +2,76 @@ import aiohttp
 import json
 import ssl
 import certifi
+import asyncio
 from datetime import datetime
-from config import LARK_WEBHOOK_URL
+from config import LARK_WEBHOOK_URL, WX_WEBHOOK_URL, WX_WEBHOOK_AUTH
 from logger import log
+
+async def send_wx_alert(symbol: str, signal_data: dict, ai_interpretation: str):
+    """
+    Sends a simple text alert to the WX webhook.
+    """
+    webhook_url = WX_WEBHOOK_URL
+    if not webhook_url:
+        log.warning("WX webhook URL not set. Skipping WX alert.")
+        return
+
+    primary = signal_data.get('primary_signal', {})
+    signal_type = primary.get('signal_type', 'N/A')
+    indicator = primary.get('indicator', 'N/A')
+    
+    title = f"{symbol} {signal_type}"
+    
+    # Format metrics
+    metrics = []
+    excluded_keys = ['indicator', 'signal_type', 'thresholds_used', 'confirmation_candle']
+    for k, v in primary.items():
+        if k not in excluded_keys:
+            metrics.append(f"{k}: {v}")
+    
+    metrics_str = "\n".join(metrics)
+    
+    # Construct content
+    content = f"Strategy: {indicator}\n\nMetrics:\n{metrics_str}\n\nAI Analysis:\n{ai_interpretation}\n\nTime: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+    
+    payload = {
+        "title": title,
+        "content": content
+    }
+    
+    headers = {
+        "Authorization": WX_WEBHOOK_AUTH,
+        "Content-Type": "application/json"
+    }
+    
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    
+    try:
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ssl_context)) as session:
+            async with session.post(webhook_url, json=payload, headers=headers) as response:
+                if response.status == 200:
+                    log.info(f"WX alert for {symbol} sent successfully.")
+                else:
+                    log.error(f"Error sending WX alert: HTTP {response.status}")
+    except Exception as e:
+        log.error(f"Exception sending WX alert for {symbol}: {e}")
+
+async def send_all_alerts(symbol: str, signal_data: dict, ai_interpretation: str):
+    """
+    Wrapper to send alerts to all configured channels.
+    """
+    tasks = []
+    
+    # Lark Alert
+    if LARK_WEBHOOK_URL:
+        tasks.append(send_lark_alert(symbol, signal_data, ai_interpretation))
+        
+    # WX Alert
+    if WX_WEBHOOK_URL:
+        tasks.append(send_wx_alert(symbol, signal_data, ai_interpretation))
+        
+    if tasks:
+        await asyncio.gather(*tasks)
 
 async def send_lark_alert(symbol: str, signal_data: dict, ai_interpretation: str):
     """
