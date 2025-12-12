@@ -347,7 +347,7 @@ export default {
     }
 
     // 3. Root Path -> Status / Info Page
-    return new Response(
+    return new Response(`
     <html>
     <head><title>WXPush Service</title></head>
     <body style="font-family:sans-serif; text-align:center; padding:50px;">
@@ -355,7 +355,6 @@ export default {
         <p>Use POST /wxsend to trigger alerts.</p>
         <p>KV Storage is: ${env.MSG_STORE ? '<span style="color:green">Active</span>' : '<span style="color:red">Not Bound</span>'}</p>
     </body>
-    </html>
-    , { headers: { 'Content-Type': 'text/html' } });
+    </html>`, { headers: { 'Content-Type': 'text/html' } });
   }
 };
