@@ -312,11 +312,12 @@ export default {
       const dateStr = beijingTime.toISOString().slice(0, 19).replace('T', ' ');
 
       // A. Save Full Content to KV
-      if (!env.MSG_STORE) return new Response('KV MSG_STORE not bound', { status: 500 });
+      const kv = env.MSG_STORE || env.LARK_MSG_STORE;
+      if (!kv) return new Response('KV MSG_STORE not bound', { status: 500 });
       
       const msgId = generateUUID();
       // Store for 7 days (604800 seconds)
-      await env.MSG_STORE.put(msgId, JSON.stringify({ title, content, date: dateStr }), { expirationTtl: 604800 });
+      await kv.put(msgId, JSON.stringify({ title, content, date: dateStr }), { expirationTtl: 604800 });
 
       // B. Construct Detail URL
       const workerUrl = `${url.protocol}//${url.host}`;
@@ -347,13 +348,21 @@ export default {
     }
 
     // 3. Root Path -> Status / Info Page
+    const isBound = !!(env.MSG_STORE || env.LARK_MSG_STORE);
     return new Response(`
     <html>
     <head><title>WXPush Service</title></head>
     <body style="font-family:sans-serif; text-align:center; padding:50px;">
         <h1>WXPush Service is Running</h1>
         <p>Use POST /wxsend to trigger alerts.</p>
-        <p>KV Storage is: ${env.MSG_STORE ? '<span style="color:green">Active</span>' : '<span style="color:red">Not Bound</span>'}</p>
+        <p>KV Binding Status:</p>
+        <ul style="list-style:none; padding:0;">
+            <li>MSG_STORE: ${env.MSG_STORE ? '<span style="color:green">✅ Bound</span>' : '<span style="color:gray">❌ Not Bound</span>'}</li>
+            <li>LARK_MSG_STORE: ${env.LARK_MSG_STORE ? '<span style="color:green">✅ Bound</span>' : '<span style="color:gray">❌ Not Bound</span>'}</li>
+        </ul>
+        <p style="font-size:0.9em; color:#666; margin-top:20px;">
+            (Ensure you have bound a KV Namespace to one of these variable names in Worker Settings -> Variables)
+        </p>
     </body>
     </html>`, { headers: { 'Content-Type': 'text/html' } });
   }
