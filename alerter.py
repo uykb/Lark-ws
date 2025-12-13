@@ -4,6 +4,7 @@ import ssl
 import certifi
 import asyncio
 from datetime import datetime
+from zoneinfo import ZoneInfo # Import ZoneInfo for timezone handling
 from config import LARK_WEBHOOK_URL, WX_WEBHOOK_URL, WX_WEBHOOK_AUTH
 from logger import log
 
@@ -119,13 +120,17 @@ async def send_lark_alert(symbol: str, signal_data: dict, ai_interpretation: str
         else:
             col2_text += metric + "\n\n"
 
+    # Get current time in Asia/Shanghai timezone
+    shanghai_tz = ZoneInfo("Asia/Shanghai")
+    current_shanghai_time = datetime.now(shanghai_tz).strftime('%Y-%m-%d %H:%M:%S')
+
     # 3. 构建卡片元素
     elements = [
         {
             "tag": "div",
             "text": {
                 "tag": "lark_md",
-                "content": f"**Signal Type:** {signal_type}\n**Strategy:** {indicator_name}"
+                "content": f"**Signal Type:** {signal_type}\n**Time[UTC+8]:** {current_shanghai_time}"
             }
         },
         {
