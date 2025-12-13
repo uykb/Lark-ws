@@ -73,52 +73,6 @@ class BaseSignal(ABC):
         """
         pass
 
-class MomentumSpikeSignal(BaseSignal):
-    """
-    Detects a momentum spike based on significant changes in both price and open interest.
-    Triggers when |OI Change| > Threshold and |Price Change| > Threshold.
-    Thresholds are dynamic based on COIN_CONFIGS.
-    """
-    @property
-    def name(self):
-        return "Price/OI Momentum Spike"
-
-    def check(self, df: pd.DataFrame, symbol: str = None):
-        if len(df) < 2:
-            return None
-            
-        # Determine thresholds
-        oi_threshold = RISE_OI_CHANGE_THRESHOLD
-        price_threshold = RISE_PRICE_CHANGE_THRESHOLD
-        
-        if symbol and symbol in COIN_CONFIGS:
-            config = COIN_CONFIGS[symbol]
-            oi_threshold = config.get("rise_oi_change_threshold", oi_threshold)
-            price_threshold = config.get("rise_price_change_threshold", price_threshold)
-            
-        latest = df.iloc[-1]
-        previous = df.iloc[-2]
-        
-        # Calculate percentage change
-        price_change = (latest['close'] / previous['close']) - 1
-        oi_change = (latest['oi'] / previous['oi']) - 1
-        
-        if abs(oi_change) > oi_threshold and abs(price_change) > price_threshold:
-            
-            direction = "Bullish" if price_change > 0 else "Bearish"
-            
-            signal = {
-                "indicator": self.name,
-                "signal_type": f"{direction} Spike",
-                "price_change": f"{price_change:+.2%}",
-                "oi_change": f"{oi_change:+.2%}",
-                "current_price": f"{latest['close']:.2f}",
-                "current_oi": f"${latest['oi']:,.0f}",
-                "thresholds_used": f"Price > {price_threshold:.1%}, OI > {oi_threshold:.1%}"
-            }
-            return _create_market_snapshot(df, signal)
-        return None
-
 class FairValueGapSignal(BaseSignal):
     """
     Detects a Fair Value Gap (FVG) and triggers a signal when the price rebalances

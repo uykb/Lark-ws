@@ -1,96 +1,82 @@
-# Crypto AI Trading Signal Bot (DeepSeek + Lark Edition)
+# Crypto Signal Bot
 
-这是一个基于 Python 的自动化加密货币交易信号机器人，专门用于监控币安（Binance）的指定 USDT 永续合约。它结合了传统的市场结构分析（如 OI 激增、FVG）和 **DeepSeek AI** 的深度解读，通过 **飞书 (Lark)** 发送实时的高质量交易信号。
+A sophisticated cryptocurrency trading signal bot that monitors Binance Futures market data, detects Fair Value Gap (FVG) signals, analyzes them using DeepSeek AI, and sends real-time alerts via Lark (Feishu) and WeChat (WXPush).
 
-## ✨ 主要功能
+## Features
 
-- **多币种监控**: 自动获取并监控 `config.py` 中配置的主流币种（`MAJOR_COINS`）数据。
-- **多维度信号检测**: 采用模块化设计，目前支持以下核心策略：
-    1.  **`MomentumSpikeSignal` (动量捕捉)**: 当合约在 15 分钟内持仓量（Open Interest）激增且价格同时上涨时触发，捕捉主力资金入场迹象。支持为不同币种（如 BTC/ETH）配置独立的灵敏度阈值。
-    2.  **`FairValueGapSignal` (趋势回归)**: 识别公平价值缺口（FVG），并在价格回补缺口且出现反转K线（如锤子线、射击之星）时触发，基于市场结构寻找入场点。
-- **DeepSeek AI 智能分析**: 集成 **DeepSeek-V3** 模型，对每个技术信号进行二次分析。AI 会结合当前市场背景，提供专业的交易逻辑解读，辅助人工决策。
-- **飞书 (Lark) 交互式告警**: 使用飞书 Webhook 发送精美的交互式卡片消息，关键信息一目了然。
-- **高效异步架构**: 使用 `asyncio` 和 `aiohttp` 并发获取数百个交易对的数据，极大降低延迟，确保信号的实时性。
-- **智能状态管理**: 内置信号去重与冷却机制（`SignalStateManager`），避免同一信号在短时间内重复报警，减少噪音。
-- **高度可配置**: 支持在 `config.py` 中灵活调整时间周期（默认 15m）、各类阈值、监控列表以及 AI 模型参数。
-- **Docker 化部署**: 提供基于 `micromamba` 的轻量级 Docker 镜像，支持一键构建与部署，适合 24/7 稳定运行。
+*   **Real-time Monitoring**: Tracks major cryptocurrencies (BTC, ETH, SOL, HYPE, AVAX) on Binance Futures.
+*   **Fair Value Gap (FVG) Strategy**: Detects bullish and bearish FVG formations and subsequent price rebalancing with reversal confirmation (Hammer/Shooting Star).
+*   **AI Analysis**: Integrates with DeepSeek AI to provide in-depth market sentiment and technical analysis for each detected signal.
+*   **Dual Notification System**:
+    *   **Lark (Feishu)**: Rich interactive cards with color-coded headers and formatted metrics.
+    *   **WeChat (WXPush)**: Template messages via Cloudflare Workers with "click-to-view" details.
+*   **Deduplication & Cooldown**: Smart filtering to prevent spam, ensuring distinct signals are sent with a 15-minute cooldown period.
+*   **Async Core**: Built on Python `asyncio` for efficient, non-blocking data fetching and processing.
 
-## 🛠️ 安装与配置
+## Configuration
 
-### 1. 本地开发环境
+The bot is configured via `config.py` and environment variables.
 
-**前置要求**:
-- Python 3.9+
-- Git
-- Conda (推荐使用 Miniconda 或 Micromamba)
+### Monitored Assets
+Currently configured to monitor: `BTCUSDT`, `ETHUSDT`, `SOLUSDT`, `HYPEUSDT`, `AVAXUSDT`.
 
-**步骤**:
+### Environment Variables (.env)
+Create a `.env` file in the root directory:
 
-1.  **克隆项目**:
+```bash
+# Binance (Optional, for higher rate limits)
+BINANCE_API_KEY=your_binance_api_key
+BINANCE_API_SECRET=your_binance_secret
+
+# DeepSeek AI
+DEEPSEEK_API_KEY=your_deepseek_key
+
+# Notifications
+LARK_WEBHOOK_URL=your_lark_webhook_url
+```
+
+### Notification Setup
+
+#### 1. Lark (Feishu)
+1.  Create a custom bot in a Lark group.
+2.  Copy the Webhook URL to `LARK_WEBHOOK_URL` in `.env`.
+
+#### 2. WeChat (WXPush)
+The project includes Cloudflare Worker scripts (`worker_api.js` and `worker_view.js`) to bridge the bot with WeChat.
+
+1.  **Deploy Workers**: Deploy the API and View workers as described in the worker scripts.
+2.  **Configure Config**: Update `config.py` with your Worker URL and Auth token.
+    ```python
+    WX_WEBHOOK_URL = "https://your-api-worker.workers.dev/wxsend"
+    WX_WEBHOOK_AUTH = "your_api_token"
+    ```
+
+## Running the Bot
+
+1.  **Install Dependencies**:
     ```bash
-    git clone https://github.com/uykb/Lark-ws.git
-    cd Lark-ws
+    pip install -r requirements.txt
     ```
+    *(Ensure `pandas`, `pandas_ta`, `ccxt`, `aiohttp`, `python-dotenv` are installed)*
 
-2.  **配置环境变量**:
-    在项目根目录创建 `.env` 文件，并填入必要的 API 密钥：
-    ```env
-    # .env
-    # DeepSeek API Key
-    DEEPSEEK_API_KEY="sk-..."
-    
-    # Lark Webhook URL (用于接收报警)
-    # 格式通常为: https://open.larksuite.com/open-apis/bot/v2/hook/xxxxxxxx-xxxx...
-    LARK_WEBHOOK_URL="YOUR_LARK_WEBHOOK_URL"
-    ```
-
-3.  **安装依赖**:
-    使用 Conda 创建并激活虚拟环境：
-    ```bash
-    conda env create -f environment.yml
-    conda activate oi-bot-env
-    ```
-
-4.  **调整配置 (可选)**:
-    修改 `config.py` 以适应你的交易风格。例如：
-    - `MAJOR_COINS`: 定义需要监控的币种列表。
-    - `TIMEFRAME`: 调整 K 线周期（默认 15m）。
-
-5.  **运行机器人**:
+2.  **Start the Bot**:
     ```bash
     python main.py
     ```
 
-### 2. Docker 部署
+## Project Structure
 
-**步骤**:
+*   `main.py`: Entry point, runs the async event loop and schedules checks.
+*   `indicators.py`: Contains the `FairValueGapSignal` logic.
+*   `data_fetcher.py`: Handles async fetching of OHLCV data from Binance.
+*   `ai_interpreter.py`: Sends signal data to DeepSeek AI for analysis.
+*   `alerter.py`: Manages sending notifications to Lark and WeChat.
+*   `state_manager.py`: Handles signal deduplication and cooldown state persistence.
+*   `config.py`: Central configuration file.
 
-1.  **构建镜像**:
-    ```bash
-    docker build -t crypto-signal-bot .
-    ```
+## Strategy Details
 
-2.  **运行容器**:
-    确保已配置好 `.env` 文件。
-    ```bash
-    docker run -d --restart unless-stopped --env-file .env --name oi-bot crypto-signal-bot
-    ```
-
-## 📂 项目结构
-
-- `main.py`: 程序入口，负责初始化、异步调度和主循环。
-- `config.py`: 项目配置文件，包含 API Key 读取、策略参数和阈值设置。
-- `data_fetcher.py`: 负责与币安 API 交互，异步获取市场数据。
-- `indicators.py`: 包含核心的技术指标计算逻辑和信号检测类。
-- `ai_interpreter.py`: 封装与 DeepSeek API 的交互逻辑，生成 AI 分析报告。
-- `alerter.py`: 处理飞书消息推送 (Lark Webhook)。
-- `state_manager.py`: 管理信号状态，处理去重和冷却逻辑。
-- `logger.py`: 日志配置。
-
-## 🤝 贡献
-
-欢迎提交 Pull Request 或 Issue 来改进策略、增加新功能或修复 Bug。
-
-## ⚠️ 免责声明
-
-本机器人仅供学习和辅助分析使用，不构成任何投资建议。加密货币市场风险极高，请谨慎交易。
+**Fair Value Gap (FVG) Rebalance**
+*   **Detection**: Identifies a 3-candle pattern where the 1st candle's high/low does not overlap with the 3rd candle's low/high.
+*   **Trigger**: Price retraces into this gap zone.
+*   **Confirmation**: A reversal candlestick pattern (Hammer for Bullish, Shooting Star for Bearish) forms after entering the gap.
