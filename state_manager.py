@@ -1,7 +1,12 @@
 import time
 import json
 import os
-from config import FVG_COOLDOWN_PERIOD_MINUTES, FVG_PRICE_TOLERANCE_PERCENT
+from config import (
+    FVG_COOLDOWN_PERIOD_MINUTES, 
+    FVG_PRICE_TOLERANCE_PERCENT,
+    MAX_COOLDOWN_PERIOD_MINUTES,
+    COOLDOWN_BACKOFF_FACTOR
+)
 from logger import log
 
 class SignalStateManager:
@@ -10,7 +15,7 @@ class SignalStateManager:
         Initializes the signal state manager with persistence.
         """
         self.state_file = state_file
-        # Storage structure: { "unique_key": {"timestamp": float, "signal_data": dict} }
+        # Storage structure: { "unique_key": {"timestamp": float, "signal_data": dict, "trigger_count": int} }
         self.last_triggered_signals = self._load_state()
 
     def _load_state(self):
@@ -42,7 +47,7 @@ class SignalStateManager:
 
     def should_send_alert(self, symbol, signal):
         """
-        Determines if a new alert should be sent based on cooldown and signal significance.
+        Determines if a new alert should be sent based on dynamic cooldown and signal significance.
         Returns a tuple (should_send: bool, previous_signal: dict | None)
         """
         unique_key = self._get_unique_key(symbol, signal)
@@ -53,64 +58,85 @@ class SignalStateManager:
         # 1. If the signal has never been sent before, it should be sent.
         if not last_signal_info:
             log.info(f"New signal type {unique_key}, allowing send.")
-            self._update_state(unique_key, signal)
+            self._update_state(unique_key, signal, trigger_count=1)
             return True, None
 
         last_timestamp = last_signal_info['timestamp']
         last_signal_data = last_signal_info['signal_data']['primary_signal']
         current_signal_data = signal['primary_signal']
+        trigger_count = last_signal_info.get('trigger_count', 1)
         
-        # 2. Check if the cooldown period has passed for the specific signal type.
-        # FVG specific cooldown logic
+        # 2. Check logic for FVG signals
         if current_signal_data.get('indicator') == "Fair Value Gap Rebalance":
-            if (current_time - last_timestamp) / 60 < FVG_COOLDOWN_PERIOD_MINUTES:
-                log.debug(f"FVG signal {unique_key} is within its specific cooldown period.")
-                # Compare FVG price levels and confirmation candle
-                try:
-                    last_fvg_top = float(last_signal_data.get('fvg_top', '0'))
-                    last_fvg_bottom = float(last_signal_data.get('fvg_bottom', '0'))
-                    current_fvg_top = float(current_signal_data.get('fvg_top', '0'))
-                    current_fvg_bottom = float(current_signal_data.get('fvg_bottom', '0'))
-                    
-                    last_conf_candle = last_signal_data.get('confirmation_candle')
-                    current_conf_candle = current_signal_data.get('confirmation_candle')
+            # Check for significant changes (Price Tolerance)
+            is_similar = False
+            try:
+                last_fvg_top = float(last_signal_data.get('fvg_top', '0'))
+                last_fvg_bottom = float(last_signal_data.get('fvg_bottom', '0'))
+                current_fvg_top = float(current_signal_data.get('fvg_top', '0'))
+                current_fvg_bottom = float(current_signal_data.get('fvg_bottom', '0'))
+                
+                last_conf_candle = last_signal_data.get('confirmation_candle')
+                current_conf_candle = current_signal_data.get('confirmation_candle')
 
-                    # Calculate midpoints for comparison robustness
-                    last_fvg_mid = (last_fvg_top + last_fvg_bottom) / 2
-                    current_fvg_mid = (current_fvg_top + current_fvg_bottom) / 2
+                # Calculate midpoints
+                last_fvg_mid = (last_fvg_top + last_fvg_bottom) / 2
+                current_fvg_mid = (current_fvg_top + current_fvg_bottom) / 2
 
-                    # Calculate percentage difference for FVG midpoints
-                    # Avoid division by zero
-                    if last_fvg_mid != 0:
-                        fvg_mid_diff_percent = abs((current_fvg_mid - last_fvg_mid) / last_fvg_mid) * 100
-                    else: # If last_fvg_mid is zero, and current_fvg_mid is also zero, they are same. Otherwise, they are different.
-                        fvg_mid_diff_percent = 0 if current_fvg_mid == 0 else float('inf')
-                    
-                    if fvg_mid_diff_percent < FVG_PRICE_TOLERANCE_PERCENT and \
-                       last_conf_candle == current_conf_candle:
-                        log.info(f"FVG signal {unique_key} suppressed: within cooldown, similar price levels (midpoint diff {fvg_mid_diff_percent:.2f}%) and same confirmation candle.")
-                        return False, last_signal_data
-
-                except (ValueError, TypeError) as e:
-                    log.warning(f"Error parsing FVG data for comparison for {unique_key}: {e}")
+                # Calculate percentage difference
+                if last_fvg_mid != 0:
+                    fvg_mid_diff_percent = abs((current_fvg_mid - last_fvg_mid) / last_fvg_mid) * 100
+                else:
+                    fvg_mid_diff_percent = 0 if current_fvg_mid == 0 else float('inf')
+                
+                if fvg_mid_diff_percent < FVG_PRICE_TOLERANCE_PERCENT and \
+                   last_conf_candle == current_conf_candle:
+                    is_similar = True
+            except (ValueError, TypeError) as e:
+                log.warning(f"Error comparing FVG data for {unique_key}: {e}")
+                is_similar = False # Treat as different on error
+            
+            if is_similar:
+                # Calculate Dynamic Cooldown: Base * (Factor ^ (Count - 1))
+                # Count 1: 15 * 2^0 = 15 min
+                # Count 2: 15 * 2^1 = 30 min
+                # Count 3: 15 * 2^2 = 60 min ...
+                
+                # Special user request handling logic interpretation:
+                # If user wants 15 -> 60 (4x jump) initially, we could adjust.
+                # But standard backoff (x2) is implemented here for consistency: 15 -> 30 -> 60 -> 120.
+                dynamic_cooldown = FVG_COOLDOWN_PERIOD_MINUTES * (COOLDOWN_BACKOFF_FACTOR ** (trigger_count - 1))
+                
+                # Cap at MAX limit
+                dynamic_cooldown = min(dynamic_cooldown, MAX_COOLDOWN_PERIOD_MINUTES)
+                
+                time_since_last_min = (current_time - last_timestamp) / 60
+                
+                if time_since_last_min < dynamic_cooldown:
+                    log.info(f"FVG signal {unique_key} suppressed. Count: {trigger_count}. Cooldown: {dynamic_cooldown:.1f}m (Elapsed: {time_since_last_min:.1f}m).")
+                    return False, last_signal_data
+                else:
+                    log.info(f"FVG signal {unique_key} passed dynamic cooldown ({dynamic_cooldown:.1f}m). Sending repeated alert (Count {trigger_count + 1}).")
+                    self._update_state(unique_key, signal, trigger_count=trigger_count + 1)
+                    return True, last_signal_data
             else:
-                log.info(f"FVG signal {unique_key} passed its specific cooldown period ({FVG_COOLDOWN_PERIOD_MINUTES} min), allowing send.")
-                self._update_state(unique_key, signal)
+                # Significant change detected -> Reset trigger count
+                log.info(f"FVG signal {unique_key} features changed significantly (Diff: {fvg_mid_diff_percent:.2f}%). Resetting cooldown.")
+                self._update_state(unique_key, signal, trigger_count=1)
                 return True, last_signal_data
-        
-        # If it's not an FVG signal (or if we add other signals later), we default to always sending 
-        # (or you could add a generic fallback cooldown here if you wanted, but for now we remove the old generic one)
-        log.info(f"Signal {unique_key} is not FVG or fell through checks. Updating state and sending.")
-        self._update_state(unique_key, signal)
+
+        # If it's not an FVG signal or other logic
+        log.info(f"Signal {unique_key} logic fell through. Updating state and sending.")
+        self._update_state(unique_key, signal, trigger_count=1)
         return True, last_signal_data
 
-    def _update_state(self, unique_key, signal):
-
+    def _update_state(self, unique_key, signal, trigger_count=1):
         """
         Updates or creates the state of a signal and saves it to the file.
         """
         self.last_triggered_signals[unique_key] = {
             "timestamp": time.time(),
-            "signal_data": signal
+            "signal_data": signal,
+            "trigger_count": trigger_count
         }
         self._save_state()

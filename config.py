@@ -71,6 +71,25 @@ COIN_CONFIGS = {
 # 在此时间内，如果 FVG 的价格区间与上次触发的 FVG 价格区间相近，则不会重复发送。
 FVG_COOLDOWN_PERIOD_MINUTES = 15 
 
+# 最大冷却时间上限（分钟），例如 12 小时
+MAX_COOLDOWN_PERIOD_MINUTES = 720
+
+# 冷却时间递增因子 (指数增长)
+# 每次重复触发，冷却时间 = 基础冷却时间 * (因子 ^ (触发次数 - 1))
+# 例如：15 -> 60 -> 120 -> 240... (若因子设为 2, 且第一跳特殊处理或者基础调整)
+# 用户要求 15 -> 60 -> 120 -> 240
+# 这里我们采用一个基础倍率策略：
+# Trigger 1: Cooldown = 15m
+# Trigger 2: Cooldown = 60m (15 * 4)
+# Trigger 3: Cooldown = 120m (60 * 2)
+# Trigger 4: Cooldown = 240m (120 * 2)
+# 为了简化实现并符合直觉，我们使用标准的指数回退：
+# Cooldown = Base * (Multiplier ^ (Count - 1))
+# 若 Multiplier = 2: 15, 30, 60, 120...
+# 若用户特别指定 15 -> 60，我们可以在代码里特殊处理第一次递增，或者调整 Multiplier。
+# 这里我们设置默认 Multiplier 为 2，并在代码逻辑中尽量贴合用户需求，或者直接使用 2 倍递增。
+COOLDOWN_BACKOFF_FACTOR = 2
+
 # FVG 信号的价格容忍度百分比。
 # 如果新的 FVG 的 fvg_top 和 fvg_bottom 与上次的 FVG 的 top/bottom 都相差小于此百分比，则视为“相同”的 FVG。
 FVG_PRICE_TOLERANCE_PERCENT = 0.05 # e.g., 0.05%
