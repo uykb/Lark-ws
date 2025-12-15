@@ -51,10 +51,10 @@ async def run_check():
                 should_send, prev_signal = state_manager.should_send_alert(symbol, signal)
                 if should_send:
                     # Async AI interpretation
-                    ai_insight = await get_ai_interpretation(symbol, TIMEFRAME, signal, previous_signal=prev_signal)
+                    ai_insight, model_name = await get_ai_interpretation(symbol, TIMEFRAME, signal, previous_signal=prev_signal)
                     
                     # Async Lark alert
-                    await send_all_alerts(symbol, signal, ai_insight)
+                    await send_all_alerts(symbol, signal, ai_insight, model_name=model_name)
                     
                     # Small delay to avoid hitting rate limits if multiple signals trigger at once
                     await asyncio.sleep(2) 

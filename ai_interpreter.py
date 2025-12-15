@@ -2,16 +2,56 @@ import json
 import aiohttp
 import ssl
 import certifi
-from config import DEEPSEEK_API_KEY, DEEPSEEK_MODEL_NAME, DEEPSEEK_API_URL
+from config import (
+    DEEPSEEK_API_KEY, DEEPSEEK_MODEL_NAME, DEEPSEEK_API_URL,
+    GEMINI_API_KEY, GEMINI_MODEL_NAME, GEMINI_API_URL
+)
 from logger import log
 
-async def get_ai_interpretation(symbol: str, timeframe: str, signal_data: dict, previous_signal: dict = None):
+async def _call_openai_compatible_api(api_key: str, api_url: str, model_name: str, system_prompt: str, user_prompt: str) -> str:
     """
-    使用 DeepSeek API 解读指标异动信号及其市场背景 (Async)
+    Generic function to call an OpenAI-compatible API.
+    Returns the content string on success, or raises an exception on failure.
     """
-    if not DEEPSEEK_API_KEY:
-        log.warning("DEEPSEEK_API_KEY is not set. AI interpretation will be skipped.")
-        return "AI interpretation unavailable (API Key missing)."
+    if not api_key:
+        raise ValueError("API Key is missing")
+    if not api_url:
+        raise ValueError("API URL is missing")
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "model": model_name,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "temperature": 1.0 
+    }
+
+    # Create SSL context with certifi
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ssl_context)) as session:
+        async with session.post(api_url, headers=headers, json=payload) as response:
+            if response.status == 200:
+                data = await response.json()
+                if 'choices' in data and len(data['choices']) > 0:
+                    return data['choices'][0]['message']['content']
+                else:
+                    raise ValueError(f"Invalid response format: {data}")
+            else:
+                error_text = await response.text()
+                raise ValueError(f"API Error {response.status}: {error_text}")
+
+async def get_ai_interpretation(symbol: str, timeframe: str, signal_data: dict, previous_signal: dict = None) -> tuple[str, str]:
+    """
+    使用 AI (优先 Gemini, 备用 DeepSeek) 解读指标异动信号及其市场背景 (Async).
+    Returns: (interpretation_text, model_name)
+    """
 
     # 为了可读性，将数据包拆分
     primary_signal = signal_data.get('primary_signal', {})
@@ -65,36 +105,25 @@ This is a new signal alert.
 {klines_str}
 """
 
-    headers = {
-        "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "model": DEEPSEEK_MODEL_NAME,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        "temperature": 1.0 
-    }
-
-    # Create SSL context with certifi
-    ssl_context = ssl.create_default_context(cafile=certifi.where())
-
+    # --- Attempt 1: Gemini ---
     try:
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ssl_context)) as session:
-            async with session.post(DEEPSEEK_API_URL, headers=headers, json=payload) as response:
-                if response.status == 200:
-                    data = await response.json()
-                    interpretation = data['choices'][0]['message']['content']
-                    log.info(f"Successfully received AI interpretation for {symbol} using DeepSeek.")
-                    return interpretation
-                else:
-                    error_text = await response.text()
-                    log.error(f"Error calling DeepSeek API: {response.status} - {error_text}")
-                    return f"AI interpretation unavailable (API Error: {response.status})."
-
+        log.info(f"Attempting AI interpretation for {symbol} using Gemini...")
+        interpretation = await _call_openai_compatible_api(
+            GEMINI_API_KEY, GEMINI_API_URL, GEMINI_MODEL_NAME, system_prompt, user_prompt
+        )
+        log.info(f"Successfully received AI interpretation for {symbol} using Gemini.")
+        return interpretation, GEMINI_MODEL_NAME
     except Exception as e:
-        log.error(f"Exception calling DeepSeek API: {e}")
-        return f"AI interpretation unavailable (Exception: {e})."
+        log.warning(f"Gemini API failed: {e}. Falling back to DeepSeek.")
+
+    # --- Attempt 2: DeepSeek ---
+    try:
+        log.info(f"Attempting AI interpretation for {symbol} using DeepSeek...")
+        interpretation = await _call_openai_compatible_api(
+            DEEPSEEK_API_KEY, DEEPSEEK_API_URL, DEEPSEEK_MODEL_NAME, system_prompt, user_prompt
+        )
+        log.info(f"Successfully received AI interpretation for {symbol} using DeepSeek.")
+        return interpretation, DEEPSEEK_MODEL_NAME
+    except Exception as e:
+        log.error(f"DeepSeek API also failed: {e}. AI interpretation unavailable.")
+        return f"AI interpretation unavailable. (Gemini Error: Check logs, DeepSeek Error: {e})", "None"

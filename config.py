@@ -5,6 +5,7 @@ load_dotenv()
 
 # --- API Keys & Webhooks ---
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 LARK_WEBHOOK_URL = os.getenv("LARK_WEBHOOK_URL")
 
@@ -14,6 +15,10 @@ WX_WEBHOOK_AUTH = "uykb"
 # --- AI Model Settings ---
 DEEPSEEK_MODEL_NAME = "deepseek-chat"
 DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions"
+
+GEMINI_MODEL_NAME = "gemini-2.5-flash-lite"
+# User defined custom OpenAI compatible address for Gemini
+GEMINI_API_URL = os.getenv("GEMINI_API_URL")
 
 # --- Monitoring Settings ---
 TIMEFRAME = '15m'               # K线周期

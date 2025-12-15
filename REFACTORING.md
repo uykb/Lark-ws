@@ -56,3 +56,24 @@
 6.  **优化 `data_fetcher.py`**：实现异步数据获取。
 7.  **完善错误处理和日志记录**：在关键模块中增加更详细的错误捕获和日志输出。
 8.  **测试**：对新旧功能进行单元测试和集成测试。
+
+## 5. AI 模型集成升级 (Gemini + DeepSeek)
+为了提高 AI 解读的可靠性和多样性，系统集成了 Google Gemini 作为主要 AI 模型，并保留 DeepSeek 作为备用模型。
+
+*   **Gemini 优先策略**：
+    *   首先尝试使用 Gemini API (兼容 OpenAI 格式) 进行市场解读。
+    *   环境变量支持自定义 OpenAI 兼容地址 (`GEMINI_API_URL`) 和 模型名称 (`GEMINI_MODEL_NAME`)。
+*   **故障转移机制 (Fallback)**：
+    *   如果 Gemini API 调用失败 (网络错误或 API 异常)，系统会自动无缝切换到 DeepSeek API。
+    *   日志中会详细记录使用的模型和任何发生的错误。
+*   **动态警报标识**：
+    *   发送的警报 (Lark/飞书, WX) 底部会明确标识当前生成解读的 AI 模型名称 (例如 `Bot: gemini-2.5-flash-lite` 或 `Bot: deepseek-chat`)。
+*   **配置更新 (`config.py`)**：
+    *   新增 `GEMINI_API_KEY`, `GEMINI_API_URL`, `GEMINI_MODEL_NAME`。
+    *   保留 `DEEPSEEK_API_KEY` 等原有配置。
+*   **代码变更 (`ai_interpreter.py`)**：
+    *   重构 `get_ai_interpretation` 函数，支持双模型逻辑。
+    *   新增 `_call_openai_compatible_api` 通用调用函数。
+*   **警报模块 (`alerter.py`)**：
+    *   函数签名更新，接受 `model_name` 参数。
+    *   UI 更新，动态显示模型来源。
