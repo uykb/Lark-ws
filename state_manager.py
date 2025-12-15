@@ -98,26 +98,26 @@ class SignalStateManager:
             
             if is_similar:
                 # Calculate Dynamic Cooldown: Base * (Factor ^ (Count - 1))
-                # Count 1: 15 * 2^0 = 15 min
-                # Count 2: 15 * 2^1 = 30 min
-                # Count 3: 15 * 2^2 = 60 min ...
+                # Cycle: 30 -> 60 -> 120 -> 240 -> 30 ...
                 
-                # Special user request handling logic interpretation:
-                # If user wants 15 -> 60 (4x jump) initially, we could adjust.
-                # But standard backoff (x2) is implemented here for consistency: 15 -> 30 -> 60 -> 120.
-                dynamic_cooldown = FVG_COOLDOWN_PERIOD_MINUTES * (COOLDOWN_BACKOFF_FACTOR ** (trigger_count - 1))
+                calculated_cooldown = FVG_COOLDOWN_PERIOD_MINUTES * (COOLDOWN_BACKOFF_FACTOR ** (trigger_count - 1))
                 
-                # Cap at MAX limit
-                dynamic_cooldown = min(dynamic_cooldown, MAX_COOLDOWN_PERIOD_MINUTES)
+                if calculated_cooldown > MAX_COOLDOWN_PERIOD_MINUTES:
+                    # Reset Logic: If exceeds max, we loop back to base cooldown
+                    dynamic_cooldown = FVG_COOLDOWN_PERIOD_MINUTES
+                    next_trigger_count = 2 # Prepare for the second step in the next cycle
+                else:
+                    dynamic_cooldown = calculated_cooldown
+                    next_trigger_count = trigger_count + 1
                 
                 time_since_last_min = (current_time - last_timestamp) / 60
                 
                 if time_since_last_min < dynamic_cooldown:
-                    log.info(f"FVG signal {unique_key} suppressed. Count: {trigger_count}. Cooldown: {dynamic_cooldown:.1f}m (Elapsed: {time_since_last_min:.1f}m).")
+                    log.info(f"FVG signal {unique_key} suppressed. Count: {trigger_count}. Required Cooldown: {dynamic_cooldown:.1f}m (Elapsed: {time_since_last_min:.1f}m).")
                     return False, last_signal_data
                 else:
-                    log.info(f"FVG signal {unique_key} passed dynamic cooldown ({dynamic_cooldown:.1f}m). Sending repeated alert (Count {trigger_count + 1}).")
-                    self._update_state(unique_key, signal, trigger_count=trigger_count + 1)
+                    log.info(f"FVG signal {unique_key} passed dynamic cooldown ({dynamic_cooldown:.1f}m). Sending repeated alert (Next Count {next_trigger_count}).")
+                    self._update_state(unique_key, signal, trigger_count=next_trigger_count)
                     return True, last_signal_data
             else:
                 # Significant change detected -> Reset trigger count

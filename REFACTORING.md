@@ -71,6 +71,10 @@
 *   **配置更新 (`config.py`)**：
     *   新增 `GEMINI_API_KEY`, `GEMINI_API_URL`, `GEMINI_MODEL_NAME`。
     *   保留 `DEEPSEEK_API_KEY` 等原有配置。
+*   **冷却机制升级**：
+    *   **指数递增与循环**：FVG 信号采用指数递增冷却策略 (30m -> 1h -> 2h -> 4h)。
+    *   **循环重置**：当冷却时间达到上限 (4小时) 后，若信号持续，冷却时间重置为 30 分钟，进入下一个循环。
+    *   **智能重置**：当监测到新的 FVG 信号 (价格区间显著变化) 时，立即重置冷却状态，确保及时推送。
 *   **代码变更 (`ai_interpreter.py`)**：
     *   重构 `get_ai_interpretation` 函数，支持双模型逻辑。
     *   新增 `_call_openai_compatible_api` 通用调用函数。
