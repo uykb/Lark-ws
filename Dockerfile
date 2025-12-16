@@ -18,6 +18,9 @@ RUN micromamba create -p /tmp/env -f /tmp/environment.yml && \
 # 使用一个非常小的 "distroless" 风格镜像作为最终运行环境
 FROM mambaorg/micromamba:1.5.6 as final
 
+# 防止 Python 缓冲 stdout 和 stderr
+ENV PYTHONUNBUFFERED=1
+
 # 安装 ca-certificates 到最终镜像 (因为 final 也是基于 debian/alpine)
 USER root
 RUN apt-get update && apt-get install -y ca-certificates openssl && rm -rf /var/lib/apt/lists/*
@@ -26,9 +29,11 @@ USER $MAMBA_USER
 # 从构建阶段复制已安装好的环境
 COPY --from=builder /tmp/env /opt/conda/
 
-# 复制你的应用代码
-COPY . /app
+# 设置工作目录
 WORKDIR /app
+
+# 复制你的应用代码
+COPY . .
 
 # 设置 PATH，以便可以直接调用 python
 ENV PATH="/opt/conda/bin:$PATH"

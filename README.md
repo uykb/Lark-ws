@@ -64,6 +64,27 @@ The project includes Cloudflare Worker scripts (`worker_api.js` and `worker_view
     python main.py
     ```
 
+## Docker & Deployment
+
+### GitHub Actions
+This project includes a GitHub Actions workflow that automatically builds and pushes the Docker image to the GitHub Container Registry (ghcr.io) on every push to `main` or when a new tag is pushed.
+
+### Pulling the Image
+You can pull the latest pre-built image from GitHub Container Registry:
+```bash
+# Replace <username> and <repo> with your GitHub details
+docker pull ghcr.io/<username>/<repo>:latest
+```
+
+### Running with Docker
+```bash
+docker run -d \
+  --name crypto-bot \
+  --env-file .env \
+  --restart unless-stopped \
+  ghcr.io/<username>/<repo>:latest
+```
+
 ## Project Structure
 
 *   `main.py`: Entry point, runs the async event loop and schedules checks.
