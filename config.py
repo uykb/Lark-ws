@@ -28,10 +28,7 @@ DATA_FETCH_LIMIT = 1000          # 每次获取数据条数
 # Only the coins listed here will be monitored.
 MAJOR_COINS = [
     "BTCUSDT",
-    "ETHUSDT",
-    "SOLUSDT",
-    "HYPEUSDT",
-    "AVAXUSDT",
+    "ETHUSDT"
 ]
 # --- Indicator Thresholds ---
 # Rule 1: Catch the Rise
