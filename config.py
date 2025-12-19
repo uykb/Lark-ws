@@ -21,7 +21,7 @@ GEMINI_MODEL_NAME = "gemini-2.5-flash-lite"
 GEMINI_API_URL = os.getenv("GEMINI_API_URL")
 
 # --- Monitoring Settings ---
-TIMEFRAME = '15m'               # K线周期
+TIMEFRAMES = ['15m', '1h', '4h']  # Monitored timeframes
 DATA_FETCH_LIMIT = 1000          # 每次获取数据条数
 
 # A list of major coins to monitor.

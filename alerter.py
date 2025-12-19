@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 from config import LARK_WEBHOOK_URL, WX_WEBHOOK_URL, WX_WEBHOOK_AUTH
 from logger import log
 
-async def send_wx_alert(symbol: str, signal_data: dict, ai_interpretation: str, model_name: str = "Unknown AI"):
+async def send_wx_alert(symbol: str, timeframe: str, signal_data: dict, ai_interpretation: str, model_name: str = "Unknown AI"):
     """
     Sends a simple text alert to the WX webhook.
     """
@@ -21,7 +21,7 @@ async def send_wx_alert(symbol: str, signal_data: dict, ai_interpretation: str, 
     signal_type = primary.get('signal_type', 'N/A')
     indicator = primary.get('indicator', 'N/A')
     
-    title = f"{symbol} {signal_type}"
+    title = f"{symbol} [{timeframe}] {signal_type}"
     
     # Format metrics
     metrics = []
@@ -33,7 +33,7 @@ async def send_wx_alert(symbol: str, signal_data: dict, ai_interpretation: str, 
     metrics_str = "\n".join(metrics)
     
     # Construct content
-    content = f"Strategy: {indicator}\n\nMetrics:\n{metrics_str}\n\nAI Analysis ({model_name}):\n{ai_interpretation}\n\nTime: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+    content = f"Timeframe: {timeframe}\nStrategy: {indicator}\n\nMetrics:\n{metrics_str}\n\nAI Analysis ({model_name}):\n{ai_interpretation}\n\nTime: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
     
     payload = {
         "title": title,
@@ -57,7 +57,7 @@ async def send_wx_alert(symbol: str, signal_data: dict, ai_interpretation: str, 
     except Exception as e:
         log.error(f"Exception sending WX alert for {symbol}: {e}")
 
-async def send_all_alerts(symbol: str, signal_data: dict, ai_interpretation: str, model_name: str = "Unknown AI"):
+async def send_all_alerts(symbol: str, timeframe: str, signal_data: dict, ai_interpretation: str, model_name: str = "Unknown AI"):
     """
     Wrapper to send alerts to all configured channels.
     """
@@ -65,16 +65,16 @@ async def send_all_alerts(symbol: str, signal_data: dict, ai_interpretation: str
     
     # Lark Alert
     if LARK_WEBHOOK_URL:
-        tasks.append(send_lark_alert(symbol, signal_data, ai_interpretation, model_name))
+        tasks.append(send_lark_alert(symbol, timeframe, signal_data, ai_interpretation, model_name))
         
     # WX Alert
     if WX_WEBHOOK_URL:
-        tasks.append(send_wx_alert(symbol, signal_data, ai_interpretation, model_name))
+        tasks.append(send_wx_alert(symbol, timeframe, signal_data, ai_interpretation, model_name))
         
     if tasks:
         await asyncio.gather(*tasks)
 
-async def send_lark_alert(symbol: str, signal_data: dict, ai_interpretation: str, model_name: str = "Unknown AI"):
+async def send_lark_alert(symbol: str, timeframe: str, signal_data: dict, ai_interpretation: str, model_name: str = "Unknown AI"):
     """
     构建并发送一个美化后的 Lark (飞书) 交互式卡片消息
     """
@@ -130,7 +130,7 @@ async def send_lark_alert(symbol: str, signal_data: dict, ai_interpretation: str
             "tag": "div",
             "text": {
                 "tag": "lark_md",
-                "content": f"**Signal Type:** {signal_type}\n**Time[UTC+8]:** {current_shanghai_time}"
+                "content": f"**Timeframe:** {timeframe}\n**Signal Type:** {signal_type}\n**Time[UTC+8]:** {current_shanghai_time}"
             }
         },
         {

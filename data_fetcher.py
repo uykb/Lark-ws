@@ -1,7 +1,7 @@
 import asyncio
 import aiohttp
 import pandas as pd
-from config import TIMEFRAME, DATA_FETCH_LIMIT, MAJOR_COINS
+from config import TIMEFRAMES, DATA_FETCH_LIMIT, MAJOR_COINS
 from logger import log
 
 BASE_URL = "https://fapi.binance.com"
@@ -18,15 +18,18 @@ async def get_all_usdt_futures_symbols(session):
     log.info(f"Using the predefined list of {len(MAJOR_COINS)} major coins for scanning: {MAJOR_COINS}")
     return MAJOR_COINS
 
-async def get_binance_data_async(symbol: str, session):
-    """Asynchronously fetches K-lines, OI, and L/S Ratio for a single symbol."""
+async def get_binance_data_async(symbol: str, timeframe: str, session):
+    """Asynchronously fetches K-lines, OI, and L/S Ratio for a single symbol and timeframe."""
     try:
         # 1. Fetch K-lines
         klines_url = f"{BASE_URL}/fapi/v1/klines"
-        params = {'symbol': symbol, 'interval': TIMEFRAME, 'limit': DATA_FETCH_LIMIT}
+        params = {'symbol': symbol, 'interval': timeframe, 'limit': DATA_FETCH_LIMIT}
         async with session.get(klines_url, params=params) as response:
             response.raise_for_status()
             klines_data = await response.json()
+
+        if not klines_data:
+            return symbol, timeframe, pd.DataFrame()
 
         df = pd.DataFrame(klines_data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'number_of_trades', 'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
@@ -39,7 +42,7 @@ async def get_binance_data_async(symbol: str, session):
         
         # 2. Fetch Open Interest (OI)
         oi_url = f"{BASE_URL}/futures/data/openInterestHist"
-        oi_params = {'symbol': symbol, 'period': TIMEFRAME, 'limit': DATA_FETCH_LIMIT}
+        oi_params = {'symbol': symbol, 'period': timeframe, 'limit': DATA_FETCH_LIMIT}
         async with session.get(oi_url, params=oi_params) as response:
             response.raise_for_status()
             oi_data = await response.json()
@@ -50,7 +53,7 @@ async def get_binance_data_async(symbol: str, session):
 
         # 3. Fetch Long/Short Ratio
         ls_url = f"{BASE_URL}/futures/data/globalLongShortAccountRatio"
-        ls_params = {'symbol': symbol, 'period': TIMEFRAME, 'limit': DATA_FETCH_LIMIT}
+        ls_params = {'symbol': symbol, 'period': timeframe, 'limit': DATA_FETCH_LIMIT}
         async with session.get(ls_url, params=ls_params) as response:
             response.raise_for_status()
             ls_data = await response.json()
@@ -62,26 +65,36 @@ async def get_binance_data_async(symbol: str, session):
         df.bfill(inplace=True)
         df.ffill(inplace=True)
         
-        return symbol, df
+        return symbol, timeframe, df
 
     except aiohttp.ClientError as e:
-        log.warning(f"Error fetching data for {symbol}: {e}")
-        return symbol, pd.DataFrame()
+        log.warning(f"Error fetching data for {symbol} {timeframe}: {e}")
+        return symbol, timeframe, pd.DataFrame()
     except Exception as e:
-        log.error(f"An unexpected error occurred for {symbol}: {e}")
-        return symbol, pd.DataFrame()
+        log.error(f"An unexpected error occurred for {symbol} {timeframe}: {e}")
+        return symbol, timeframe, pd.DataFrame()
 
 async def get_all_binance_data_async():
-    """Fetches data for monitored symbols in parallel."""
+    """Fetches data for monitored symbols and timeframes in parallel."""
     connector = aiohttp.TCPConnector(ssl=False)
     async with aiohttp.ClientSession(connector=connector) as session:
         symbols = await get_all_usdt_futures_symbols(session)
         if not symbols:
             return {}
             
-        tasks = [get_binance_data_async(symbol, session) for symbol in symbols]
+        tasks = []
+        for symbol in symbols:
+            for timeframe in TIMEFRAMES:
+                tasks.append(get_binance_data_async(symbol, timeframe, session))
+        
         results = await asyncio.gather(*tasks)
         
-        # Return a dictionary of {symbol: dataframe}
-        return {symbol: df for symbol, df in results if not df.empty}
+        # Return a dictionary of {symbol: {timeframe: dataframe}}
+        data = {}
+        for symbol, timeframe, df in results:
+            if not df.empty:
+                if symbol not in data:
+                    data[symbol] = {}
+                data[symbol][timeframe] = df
+        return data
 

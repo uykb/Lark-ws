@@ -37,20 +37,20 @@ class SignalStateManager:
         except IOError as e:
             log.error(f"Could not save signal state to {self.state_file}. Error: {e}")
 
-    def _get_unique_key(self, symbol, signal):
+    def _get_unique_key(self, symbol, timeframe, signal):
         """
-        Generates a unique key based on the symbol, indicator name, and signal type.
+        Generates a unique key based on the symbol, timeframe, indicator name, and signal type.
         """
         indicator = signal['primary_signal'].get('indicator', 'UnknownIndicator')
         signal_type = signal['primary_signal'].get('signal_type', 'UnknownType')
-        return f"{symbol}-{indicator}-{signal_type}"
+        return f"{symbol}-{timeframe}-{indicator}-{signal_type}"
 
-    def should_send_alert(self, symbol, signal):
+    def should_send_alert(self, symbol, timeframe, signal):
         """
         Determines if a new alert should be sent based on dynamic cooldown and signal significance.
         Returns a tuple (should_send: bool, previous_signal: dict | None)
         """
-        unique_key = self._get_unique_key(symbol, signal)
+        unique_key = self._get_unique_key(symbol, timeframe, signal)
         current_time = time.time()
         
         last_signal_info = self.last_triggered_signals.get(unique_key)
