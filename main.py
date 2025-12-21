@@ -55,7 +55,7 @@ async def run_check():
                         ai_insight, model_name = await get_ai_interpretation(symbol, timeframe, signal, previous_signal=prev_signal)
                         
                         # Async Lark alert
-                        await send_all_alerts(symbol, signal, ai_insight, model_name=model_name)
+                        await send_all_alerts(symbol, timeframe, signal, ai_insight, model_name=model_name)
                         
                         # Small delay to avoid hitting rate limits if multiple signals trigger at once
                         await asyncio.sleep(2) 
