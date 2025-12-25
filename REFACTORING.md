@@ -1,83 +1,126 @@
-# 项目功能重构说明文档
+# 项目重构完成与使用指南 (Refactoring Report & User Guide)
 
-## 1. 引言
-本说明文档旨在概述 OI-bot 加密货币交易信号机器人的重构计划，以增强其功能、提高代码的可维护性和扩展性。主要目标是实现 `README.md` 中提及的“Catch the Trend (15min FVG)”信号，并对现有架构进行优化，为未来的功能扩展打下基础。
+## 1. 重构总结 (Refactoring Summary)
 
-## 2. 核心重构目标
-*   **实现“Catch the Trend (15min FVG)”信号**：集成基于公平价值缺口 (Fair Value Gap, FVG) 的趋势捕捉信号，作为新的交易策略。
-*   **改进信号检测器的灵活性**：使 `indicators.py` 能够更容易地集成和管理多种信号检测逻辑。
-*   **增强配置管理**：为新信号添加必要的配置项，并考虑未来更灵活的配置方式。
-*   **持久化信号状态**：解决机器人重启后信号状态丢失的问题。
-*   **优化数据获取**：探索异步数据获取以提高效率。
-*   **提升代码健壮性**：改善错误处理和日志记录。
+本项目已完成核心功能的重构与升级，实现了更高效、智能的加密货币信号监测系统。
 
-## 3. 模块化改进
+### 已完成的改进 (Achievements)
+- [x] **Catch the Trend (15min FVG)**: 成功集成基于公平价值缺口 (FVG) 的趋势捕捉策略，支持 K 线形态确认（锤头/吞没）。
+- [x] **异步架构 (Async Core)**: 全面迁移至 `asyncio` 和 `aiohttp`，实现了 Binance 数据的并发获取，大幅降低延迟。
+- [x] **双 AI 模型引擎**: 集成 **Google Gemini** (主) + **DeepSeek** (备) 的双模型架构，确保分析服务的连续性与高可用性。
+- [x] **状态持久化**: 实现 `SignalStateManager`，支持信号去重与状态保存（基于 JSON/SQLite），防止重启后信号重复推送。
+- [x] **容器化构建**: 引入基于 `micromamba` 的多阶段构建 `Dockerfile`，提供极简且一致的运行环境。
 
-### 3.1 `indicators.py` - 信号检测器重构
-*   **抽象基类/接口**：引入一个 `BaseSignal` 抽象基类或接口，定义 `check(self, df: pd.DataFrame)` 方法和 `signal_name` 属性，确保所有信号检测器遵循统一的结构。
-*   **新信号实现**：
-    *   **`FairValueGapSignal` 类**：实现“Catch the Trend (15min FVG)”逻辑。该信号将检测 FVG，等待价格回补，并在确认趋势反转K线时触发。
-        *   **检测 FVG**：识别价格图表中的 FVG 模式。
-        *   **回补确认**：检查价格是否回补了 FVG。
-        *   **反转K线**：识别特定形态（如锤头、吞没）的反转K线作为最终触发条件。
-*   **信号管理器**：在 `indicators.py` 中或引入一个新的文件 `signal_manager.py`，负责加载和管理所有信号检测器，允许 `main.py` 迭代调用。
+## 2. 系统架构概览
 
-### 3.2 `config.py` - 配置增强
-*   **新增 FVG 信号配置**：
-    *   `FVG_REBALANCE_THRESHOLD`：价格回补 FVG 的阈值。
-    *   `FVG_CONFIRMATION_CANDLE_TYPE`：定义确认反转K线的类型。
-    *   其他 FVG 相关的参数。
-*   **信号列表配置**：可以考虑在 `config.py` 中定义一个列表，列出需要激活的信号检测器类名称，使信号的启用/禁用更灵活。
+*   **入口 (Entry)**: `main.py` 运行异步事件循环，每分钟调度一次信号检查。
+*   **数据层**: `data_fetcher.py` 异步并发获取多币种、多时间周期的 OHLCV 数据。
+*   **策略层**: `indicators.py` 通过 `FairValueGapSignal` 等类进行即时技术分析。
+*   **分析层**: `ai_interpreter.py` 优先调用 Gemini API 进行深度市场解读，失败时自动切换至 DeepSeek。
+*   **通知层**: `alerter.py` 分发富文本卡片至飞书 (Lark) 和 微信 (WXPush/Cloudflare Workers)。
 
-### 3.3 `data_fetcher.py` - 异步优化
-*   **引入 `asyncio` 和 `aiohttp`**：重写 `get_all_usdt_futures_symbols` 和 `get_binance_data`，使用异步 HTTP 请求并行获取多个交易对的数据，显著提高数据获取效率。
-*   **批量数据获取**：探索币安 API 是否支持一次性获取多个 symbol 的数据，进一步减少请求次数。
+## 3. 安装与部署指南 (Installation & Usage)
 
-### 3.4 `state_manager.py` - 持久化
-*   **文件存储**：将 `self.last_triggered_signals` 存储到本地 JSON 文件或 SQLite 数据库中。
-    *   **加载**：在 `__init__` 中尝试从文件加载历史状态。
-    *   **保存**：在 `_update_state` 或定时任务中将当前状态保存到文件。
-*   **定期清理**：实现一个机制定期清理过期的信号状态，避免文件过大。
+### 3.1 环境准备
 
-### 3.5 `main.py` - 适配与协调
-*   **信号注册**：在 `main.py` 中初始化所有激活的信号检测器（根据 `config.py` 或新的信号管理器）。
-*   **迭代检查**：修改 `run_check` 函数，使其能够迭代调用所有注册的信号检测器。
-*   **异步集成**：如果 `data_fetcher.py` 变为异步，`main.py` 中的调度和数据流也需要调整为异步模式。
+项目依赖 **Python 3.9+**，推荐使用 **Docker** 或 **Conda/Mamba** 进行环境管理。
 
-## 4. 实施步骤（初步）
-1.  **创建 `REFACTORING.md` 文件** (在 `ACT MODE` 下执行)。
-2.  **重构 `indicators.py`**：
-    *   定义 `BaseSignal` 抽象类。
-    *   将 `MomentumSpikeSignal` 适配到 `BaseSignal`。
-    *   实现 `FairValueGapSignal` 类。
-3.  **更新 `config.py`**：添加 FVG 信号相关的配置参数。
-4.  **修改 `main.py`**：适配新的信号检测器结构，使其能够同时运行多个信号。
-5.  **重构 `state_manager.py`**：实现信号状态的持久化到文件。
-6.  **优化 `data_fetcher.py`**：实现异步数据获取。
-7.  **完善错误处理和日志记录**：在关键模块中增加更详细的错误捕获和日志输出。
-8.  **测试**：对新旧功能进行单元测试和集成测试。
+#### 方式一：Docker 部署 (推荐)
+无需本地安装 Python 环境，直接构建镜像。
 
-## 5. AI 模型集成升级 (Gemini + DeepSeek)
-为了提高 AI 解读的可靠性和多样性，系统集成了 Google Gemini 作为主要 AI 模型，并保留 DeepSeek 作为备用模型。
+1.  **构建镜像**:
+    ```bash
+    docker build -t crypto-bot .
+    ```
+2.  **配置环境文件 (.env)**:
+    在项目根目录创建 `.env` 文件 (参考下文配置说明)。
+3.  **运行容器**:
+    ```bash
+    docker run -d \
+      --name crypto-bot \
+      --env-file .env \
+      --restart unless-stopped \
+      crypto-bot
+    ```
 
-*   **Gemini 优先策略**：
-    *   首先尝试使用 Gemini API (兼容 OpenAI 格式) 进行市场解读。
-    *   环境变量支持自定义 OpenAI 兼容地址 (`GEMINI_API_URL`) 和 模型名称 (`GEMINI_MODEL_NAME`)。
-*   **故障转移机制 (Fallback)**：
-    *   如果 Gemini API 调用失败 (网络错误或 API 异常)，系统会自动无缝切换到 DeepSeek API。
-    *   日志中会详细记录使用的模型和任何发生的错误。
-*   **动态警报标识**：
-    *   发送的警报 (Lark/飞书, WX) 底部会明确标识当前生成解读的 AI 模型名称 (例如 `Bot: gemini-2.5-flash-lite` 或 `Bot: deepseek-chat`)。
-*   **配置更新 (`config.py`)**：
-    *   新增 `GEMINI_API_KEY`, `GEMINI_API_URL`, `GEMINI_MODEL_NAME`。
-    *   保留 `DEEPSEEK_API_KEY` 等原有配置。
-*   **冷却机制升级**：
-    *   **指数递增与循环**：FVG 信号采用指数递增冷却策略 (30m -> 1h -> 2h -> 4h)。
-    *   **循环重置**：当冷却时间达到上限 (4小时) 后，若信号持续，冷却时间重置为 30 分钟，进入下一个循环。
-    *   **智能重置**：当监测到新的 FVG 信号 (价格区间显著变化) 时，立即重置冷却状态，确保及时推送。
-*   **代码变更 (`ai_interpreter.py`)**：
-    *   重构 `get_ai_interpretation` 函数，支持双模型逻辑。
-    *   新增 `_call_openai_compatible_api` 通用调用函数。
-*   **警报模块 (`alerter.py`)**：
-    *   函数签名更新，接受 `model_name` 参数。
-    *   UI 更新，动态显示模型来源。
+#### 方式二：本地 Conda/Mamba 开发
+1.  **创建环境**:
+    使用 `environment.yml` 创建一致的依赖环境。
+    ```bash
+    # 使用 Micromamba (推荐)
+    micromamba create -f environment.yml
+    micromamba activate oi-bot-env
+
+    # 或使用 Conda
+    conda env create -f environment.yml
+    conda activate oi-bot-env
+    ```
+2.  **配置环境文件 (.env)**:
+    同上。
+3.  **运行**:
+    ```bash
+    python main.py
+    ```
+
+### 3.2 配置文件说明
+
+#### `.env` (敏感配置)
+请在项目根目录创建 `.env` 文件，填入以下必要信息：
+
+```ini
+# --- AI 模型配置 ---
+# Google Gemini (主要)
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_API_URL=https://generativelanguage.googleapis.com/v1beta/openai/  # 或自定义反代地址
+GEMINI_MODEL_NAME=gemini-2.0-flash-exp # 推荐模型
+
+# DeepSeek (备用)
+DEEPSEEK_API_KEY=your_deepseek_api_key
+
+# --- 交易所配置 ---
+# Binance (可选，用于提高 API 频率限制)
+BINANCE_API_KEY=your_binance_key
+BINANCE_API_SECRET=your_binance_secret
+
+# --- 通知渠道 ---
+# 飞书 (Lark) Webhook
+LARK_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxxx-xxxx
+
+# 微信 (WXPush via Cloudflare Workers)
+WX_WEBHOOK_URL=https://your-worker.workers.dev/wxsend
+WX_WEBHOOK_AUTH=your_worker_auth_token
+```
+
+#### `config.py` (策略配置)
+可调整以下参数以改变机器人行为：
+*   `TIMEFRAMES`: 监测的时间周期 (默认 `["15m", "1h", "4h"]`)。
+*   `SYMBOLS`: 监测的币种列表。
+*   `ACTIVE_SIGNALS`: 启用的信号策略类名列表 (如 `["FairValueGapSignal"]`)。
+*   `FVG_REBALANCE_THRESHOLD`: FVG 回补触发阈值 (0.0-1.0)。
+
+## 4. 目录结构说明
+
+```text
+.
+├── main.py              # 程序入口 (Async Loop)
+├── config.py            # 静态配置
+├── environment.yml      # Conda 环境依赖
+├── Dockerfile           # Docker 构建文件
+├── .env                 # 环境变量 (需手动创建)
+├── internal/
+│   └── state/           # 状态存储 (JSON/DB)
+├── data_fetcher.py      # 异步数据获取
+├── indicators.py        # 信号策略实现 (FVG)
+├── ai_interpreter.py    # 双模型 AI 解读逻辑
+├── alerter.py           # 报警发送模块
+├── state_manager.py     # 状态管理与去重
+└── worker_*.js          # Cloudflare Workers 脚本 (微信推送后端)
+```
+
+## 5. 维护与除错
+
+*   **日志**: 默认输出到控制台。Docker 模式下使用 `docker logs -f crypto-bot` 查看。
+*   **状态重置**: 若需重置信号状态，可删除 `internal/state/` 目录下的 `.json` 或 `.db` 文件。
+*   **新增策略**:
+    1. 在 `indicators.py` 中继承基类实现新策略。
+    2. 在 `config.py` 的 `ACTIVE_SIGNALS` 列表中添加类名。
