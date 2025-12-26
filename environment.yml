@@ -5,10 +5,10 @@ dependencies:
   - python=3.9
   - pip
   - requests
-  - aiohttp
+  - aiohttp==3.9.5
   - pandas
   - python-dotenv
   - schedule
   - pandas-ta
   - certifi
-  - aiohttp-socks
+  - aiohttp-socks==0.8.4
