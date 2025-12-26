@@ -5,7 +5,8 @@ from config import (
     FVG_COOLDOWN_PERIOD_MINUTES, 
     FVG_PRICE_TOLERANCE_PERCENT,
     MAX_COOLDOWN_PERIOD_MINUTES,
-    COOLDOWN_BACKOFF_FACTOR
+    COOLDOWN_BACKOFF_FACTOR,
+    DEFAULT_COOLDOWN_PERIOD_MINUTES
 )
 from logger import log
 
@@ -125,8 +126,16 @@ class SignalStateManager:
                 self._update_state(unique_key, signal, trigger_count=1)
                 return True, last_signal_data
 
-        # If it's not an FVG signal or other logic
-        log.info(f"Signal {unique_key} logic fell through. Updating state and sending.")
+        # 3. Generic logic for all other signals
+        # Use a simple time-based cooldown
+        time_since_last_min = (current_time - last_timestamp) / 60
+        
+        if time_since_last_min < DEFAULT_COOLDOWN_PERIOD_MINUTES:
+            log.info(f"Signal {unique_key} suppressed by default cooldown. "
+                     f"Elapsed: {time_since_last_min:.1f}m, Required: {DEFAULT_COOLDOWN_PERIOD_MINUTES}m.")
+            return False, last_signal_data
+        
+        log.info(f"Signal {unique_key} passed default cooldown. Updating state and sending.")
         self._update_state(unique_key, signal, trigger_count=1)
         return True, last_signal_data
 

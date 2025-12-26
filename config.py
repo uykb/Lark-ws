@@ -67,6 +67,10 @@ COIN_CONFIGS = {
 }
 
 # --- State Management (Memory) Settings ---
+# 默认的全局冷却时间（分钟），适用于所有没有特殊冷却逻辑的信号。
+# 避免短时间内重复发送相同的信号。
+DEFAULT_COOLDOWN_PERIOD_MINUTES = 60
+
 # FVG 信号的专属冷却时间（分钟）。
 # 在此时间内，如果 FVG 的价格区间与上次触发的 FVG 价格区间相近，则不会重复发送。
 FVG_COOLDOWN_PERIOD_MINUTES = 30 
