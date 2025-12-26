@@ -27,6 +27,17 @@ GEMINI_API_URL = os.getenv("GEMINI_API_URL")
 TIMEFRAMES = ['15m', '1h', '4h']  # Monitored timeframes
 DATA_FETCH_LIMIT = 1000          # 每次获取数据条数
 
+# --- Dynamic Symbol Discovery ---
+# If True, the bot will automatically fetch the top volume coins from Binance.
+# If False, it will use the static MAJOR_COINS list.
+ENABLE_DYNAMIC_SCAN = True
+
+# Number of top coins to monitor by 24h quote volume.
+TOP_N_BY_VOLUME = 20
+
+# Minimum 24h quote volume (in USDT) to consider a coin.
+MIN_24H_QUOTE_VOLUME = 50_000_000 # 50 Million USDT
+
 # A list of major coins to monitor.
 # Only the coins listed here will be monitored.
 MAJOR_COINS = [

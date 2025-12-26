@@ -2,22 +2,70 @@ import asyncio
 import aiohttp
 from aiohttp_socks import ProxyConnector
 import pandas as pd
-from config import TIMEFRAMES, DATA_FETCH_LIMIT, MAJOR_COINS, SOCKS5_PROXY
+from config import (
+    TIMEFRAMES, 
+    DATA_FETCH_LIMIT, 
+    MAJOR_COINS, 
+    SOCKS5_PROXY,
+    ENABLE_DYNAMIC_SCAN,
+    TOP_N_BY_VOLUME,
+    MIN_24H_QUOTE_VOLUME
+)
 from logger import log
 
 BASE_URL = "https://fapi.binance.com"
 
 async def get_all_usdt_futures_symbols(session):
     """
-    Returns the static list of major coins for scanning.
-    The dynamic scanning of all USDT futures has been disabled to focus on major coins.
+    Returns a list of symbols to monitor.
+    If ENABLE_DYNAMIC_SCAN is True, fetches top volume USDT futures from Binance.
+    Otherwise, returns the static MAJOR_COINS list.
     """
-    if not MAJOR_COINS:
-        log.warning("MAJOR_COINS list in config.py is empty! No symbols will be scanned.")
-        return []
+    if not ENABLE_DYNAMIC_SCAN:
+        if not MAJOR_COINS:
+            log.warning("MAJOR_COINS list in config.py is empty and Dynamic Scan is disabled! No symbols will be scanned.")
+            return []
+        log.info(f"Using the predefined list of {len(MAJOR_COINS)} major coins for scanning: {MAJOR_COINS}")
+        return MAJOR_COINS
+
+    log.info("Dynamic Scan Enabled: Fetching 24hr ticker data from Binance...")
+    try:
+        url = f"{BASE_URL}/fapi/v1/ticker/24hr"
+        async with session.get(url) as response:
+            response.raise_for_status()
+            tickers = await response.json()
         
-    log.info(f"Using the predefined list of {len(MAJOR_COINS)} major coins for scanning: {MAJOR_COINS}")
-    return MAJOR_COINS
+        # Filter and sort
+        usdt_pairs = []
+        for t in tickers:
+            symbol = t['symbol']
+            quote_vol = float(t['quoteVolume'])
+            
+            # Filter criteria:
+            # 1. Must end with USDT
+            # 2. Must not be an Index or heavily leveraged token (usually distinct, but for standard futures simple suffix check is mostly enough. 
+            #    Binance Futures symbols are mostly standard. We can filter out things like 'USDC' pairs if needed, but here we want USDT.)
+            # 3. Volume check
+            
+            if symbol.endswith('USDT') and quote_vol >= MIN_24H_QUOTE_VOLUME:
+                usdt_pairs.append({
+                    'symbol': symbol,
+                    'quoteVolume': quote_vol
+                })
+        
+        # Sort by volume descending
+        usdt_pairs.sort(key=lambda x: x['quoteVolume'], reverse=True)
+        
+        # Take Top N
+        top_pairs = usdt_pairs[:TOP_N_BY_VOLUME]
+        selected_symbols = [p['symbol'] for p in top_pairs]
+        
+        log.info(f"Dynamic Scan selected top {len(selected_symbols)} coins by volume: {selected_symbols}")
+        return selected_symbols
+
+    except Exception as e:
+        log.error(f"Error during dynamic symbol discovery: {e}. Falling back to MAJOR_COINS.")
+        return MAJOR_COINS
 
 async def get_binance_data_async(symbol: str, timeframe: str, session):
     """Asynchronously fetches K-lines, OI, and L/S Ratio for a single symbol and timeframe."""
