@@ -33,7 +33,7 @@ DATA_FETCH_LIMIT = 1000          # 每次获取数据条数
 ENABLE_DYNAMIC_SCAN = True
 
 # Number of top coins to monitor by 24h quote volume.
-TOP_N_BY_VOLUME = 10
+TOP_N_BY_VOLUME = 5
 
 # Minimum 24h quote volume (in USDT) to consider a coin.
 MIN_24H_QUOTE_VOLUME = 50_000_000 # 50 Million USDT
