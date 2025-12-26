@@ -12,7 +12,7 @@ LARK_WEBHOOK_URL = os.getenv("LARK_WEBHOOK_URL")
 # Proxy Settings
 SOCKS5_PROXY = os.getenv("SOCKS5_PROXY")
 
-WX_WEBHOOK_URL = "https://wxpush.uykb.workers.dev/wxsend"
+WX_WEBHOOK_URL = "https://wxpush.uykb.eu.org/wxsend"
 WX_WEBHOOK_AUTH = "uykb"
 
 # --- AI Model Settings ---
