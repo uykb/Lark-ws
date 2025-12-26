@@ -1,7 +1,8 @@
 import asyncio
 import aiohttp
+from aiohttp_socks import ProxyConnector
 import pandas as pd
-from config import TIMEFRAMES, DATA_FETCH_LIMIT, MAJOR_COINS
+from config import TIMEFRAMES, DATA_FETCH_LIMIT, MAJOR_COINS, SOCKS5_PROXY
 from logger import log
 
 BASE_URL = "https://fapi.binance.com"
@@ -76,7 +77,13 @@ async def get_binance_data_async(symbol: str, timeframe: str, session):
 
 async def get_all_binance_data_async():
     """Fetches data for monitored symbols and timeframes in parallel."""
-    connector = aiohttp.TCPConnector(ssl=False)
+    if SOCKS5_PROXY:
+        # Enable SOCKS5 proxy for Binance requests if configured
+        connector = ProxyConnector.from_url(SOCKS5_PROXY, ssl=False)
+        log.info(f"Using SOCKS5 Proxy for Binance: {SOCKS5_PROXY}")
+    else:
+        connector = aiohttp.TCPConnector(ssl=False)
+
     async with aiohttp.ClientSession(connector=connector) as session:
         symbols = await get_all_usdt_futures_symbols(session)
         if not symbols:

@@ -9,6 +9,9 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 LARK_WEBHOOK_URL = os.getenv("LARK_WEBHOOK_URL")
 
+# Proxy Settings
+SOCKS5_PROXY = os.getenv("SOCKS5_PROXY")
+
 WX_WEBHOOK_URL = "https://wxpush.uykb.workers.dev/wxsend"
 WX_WEBHOOK_AUTH = "uykb"
 
