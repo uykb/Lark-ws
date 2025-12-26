@@ -11,3 +11,4 @@ dependencies:
   - schedule
   - pandas-ta
   - certifi
+  - aiohttp-socks
