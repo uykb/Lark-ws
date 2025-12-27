@@ -52,10 +52,25 @@ RISE_PRICE_CHANGE_THRESHOLD = 0.01 # Price a single period change threshold (1%)
 # Rule 2: Catch the Trend (FVG)
 # FVG config is now handled within the class or via specific new constants if needed
 
+# Rule 3: RSI Divergence
+RSI_LENGTH = 14
+RSI_DIVERGENCE_WINDOW = 10 # Check for pivot points within this window
+
+# Rule 4: Bollinger Bands Breakout
+BB_LENGTH = 20
+BB_STD = 2.0
+
+# Rule 5: Volume Spike
+VOLUME_MA_LENGTH = 20
+VOLUME_SPIKE_THRESHOLD = 2.0 # Current volume must be 2.0x the average
+
 # --- Active Signals ---
 # A list of signal class names to be activated.
 ACTIVE_SIGNALS = [
     "FairValueGapSignal",
+    "RSIDivergenceSignal",
+    "BollingerBandsBreakoutSignal",
+    "VolumeSpikeSignal",
 ]
 
 # --- Per-Coin Configuration Overrides ---

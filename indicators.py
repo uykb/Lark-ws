@@ -141,3 +141,197 @@ class FairValueGapSignal(BaseSignal):
                                 return _create_market_snapshot(df, signal)
                 break # Found the latest FVG, no need to check older ones
         return None
+
+class RSIDivergenceSignal(BaseSignal):
+    """
+    Detects RSI Divergences (Bullish and Bearish).
+    """
+    @property
+    def name(self):
+        return "RSI Divergence"
+
+    def check(self, df: pd.DataFrame, symbol: str = None):
+        if len(df) < RSI_LENGTH + RSI_DIVERGENCE_WINDOW + 5:
+            return None
+
+        # Ensure RSI is calculated
+        rsi_col = f'RSI_{RSI_LENGTH}'
+        if rsi_col not in df.columns:
+            df.ta.rsi(length=RSI_LENGTH, append=True)
+        
+        # We need to find local extrema (pivots) for Price and RSI
+        
+        curr_idx = len(df) - 2 # The last closed candle
+        if curr_idx < 5: return None
+        
+        # Candidate Pivot at i (using -2 as the "current" confirmed pivot point)
+        i = len(df) - 2
+        
+        # 1. Bullish Divergence Check (Lower Price Lows, Higher RSI Lows)
+        # Check if candle[i] is a local Low
+        is_price_low = df.iloc[i]['low'] < df.iloc[i-1]['low'] and df.iloc[i]['low'] < df.iloc[i+1]['low']
+        
+        if is_price_low:
+            curr_low_price = df.iloc[i]['low']
+            curr_low_rsi = df.iloc[i][rsi_col]
+            
+            # Find a previous local low within the window
+            for j in range(i - 2, i - RSI_DIVERGENCE_WINDOW, -1):
+                if j < 2: break
+                
+                # Check if j is a local low
+                is_prev_low = df.iloc[j]['low'] < df.iloc[j-1]['low'] and df.iloc[j]['low'] < df.iloc[j+1]['low']
+                
+                if is_prev_low:
+                    prev_low_price = df.iloc[j]['low']
+                    prev_low_rsi = df.iloc[j][rsi_col]
+                    
+                    # Bullish Divergence Condition
+                    if curr_low_price < prev_low_price and curr_low_rsi > prev_low_rsi:
+                        signal = {
+                            "indicator": self.name,
+                            "signal_type": "Bullish Divergence",
+                            "current_low": f"{curr_low_price:.2f}",
+                            "prev_low": f"{prev_low_price:.2f}",
+                            "current_rsi": f"{curr_low_rsi:.2f}",
+                            "prev_rsi": f"{prev_low_rsi:.2f}",
+                            "current_price": f"{df.iloc[-1]['close']:.2f}"
+                        }
+                        return _create_market_snapshot(df, signal)
+                    break # Only compare with the most recent previous pivot
+
+        # 2. Bearish Divergence Check (Higher Price Highs, Lower RSI Highs)
+        # Check if candle[i] is a local High
+        is_price_high = df.iloc[i]['high'] > df.iloc[i-1]['high'] and df.iloc[i]['high'] > df.iloc[i+1]['high']
+        
+        if is_price_high:
+            curr_high_price = df.iloc[i]['high']
+            curr_high_rsi = df.iloc[i][rsi_col]
+            
+            # Find a previous local high within the window
+            for j in range(i - 2, i - RSI_DIVERGENCE_WINDOW, -1):
+                if j < 2: break
+                
+                # Check if j is a local high
+                if df.iloc[j]['high'] > df.iloc[j-1]['high'] and df.iloc[j]['high'] > df.iloc[j+1]['high']:
+                    prev_high_price = df.iloc[j]['high']
+                    prev_high_rsi = df.iloc[j][rsi_col]
+                    
+                    # Bearish Divergence Condition
+                    if curr_high_price > prev_high_price and curr_high_rsi < prev_high_rsi:
+                        signal = {
+                            "indicator": self.name,
+                            "signal_type": "Bearish Divergence",
+                            "current_high": f"{curr_high_price:.2f}",
+                            "prev_high": f"{prev_high_price:.2f}",
+                            "current_rsi": f"{curr_high_rsi:.2f}",
+                            "prev_rsi": f"{prev_high_rsi:.2f}",
+                            "current_price": f"{df.iloc[-1]['close']:.2f}"
+                        }
+                        return _create_market_snapshot(df, signal)
+                    break
+
+        return None
+
+class BollingerBandsBreakoutSignal(BaseSignal):
+    """
+    Detects breakouts from Bollinger Bands.
+    """
+    @property
+    def name(self):
+        return "Bollinger Bands Breakout"
+
+    def check(self, df: pd.DataFrame, symbol: str = None):
+        if len(df) < BB_LENGTH + 5:
+            return None
+
+        # Calculate Bollinger Bands
+        # Returns a dataframe with columns like BBL_20_2.0, BBM_20_2.0, BBU_20_2.0
+        bb_df = df.ta.bbands(length=BB_LENGTH, std=BB_STD)
+        
+        if bb_df is None: return None
+        
+        # Append to main df for easier access if needed, or just use the result
+        # Names depend on the lib version, but usually:
+        lower_col = f"BBL_{BB_LENGTH}_{BB_STD}"
+        upper_col = f"BBU_{BB_LENGTH}_{BB_STD}"
+        
+        if lower_col not in bb_df.columns or upper_col not in bb_df.columns:
+            # Fallback to standard naming if specific float formatting differs
+            cols = bb_df.columns
+            lower_col = [c for c in cols if c.startswith('BBL')][0]
+            upper_col = [c for c in cols if c.startswith('BBU')][0]
+
+        current_candle = df.iloc[-1]
+        prev_candle = df.iloc[-2]
+        
+        current_lower = bb_df.iloc[-1][lower_col]
+        current_upper = bb_df.iloc[-1][upper_col]
+        prev_lower = bb_df.iloc[-2][lower_col]
+        prev_upper = bb_df.iloc[-2][upper_col]
+        
+        # Bullish Breakout: Close crosses above Upper Band
+        # Checking if previous close was below or near, and current is above.
+        # Or just strictly current close > upper band? 
+        # A breakout usually implies the candle closes outside the band.
+        if prev_candle['close'] <= prev_upper and current_candle['close'] > current_upper:
+             signal = {
+                "indicator": self.name,
+                "signal_type": "Bullish Breakout",
+                "upper_band": f"{current_upper:.2f}",
+                "close_price": f"{current_candle['close']:.2f}",
+                "current_price": f"{current_candle['close']:.2f}"
+            }
+             return _create_market_snapshot(df, signal)
+
+        # Bearish Breakout: Close crosses below Lower Band
+        if prev_candle['close'] >= prev_lower and current_candle['close'] < current_lower:
+             signal = {
+                "indicator": self.name,
+                "signal_type": "Bearish Breakout",
+                "lower_band": f"{current_lower:.2f}",
+                "close_price": f"{current_candle['close']:.2f}",
+                "current_price": f"{current_candle['close']:.2f}"
+            }
+             return _create_market_snapshot(df, signal)
+             
+        return None
+
+class VolumeSpikeSignal(BaseSignal):
+    """
+    Detects abnormal volume spikes.
+    """
+    @property
+    def name(self):
+        return "Volume Spike"
+
+    def check(self, df: pd.DataFrame, symbol: str = None):
+        if len(df) < VOLUME_MA_LENGTH + 5:
+            return None
+
+        # Calculate Volume SMA
+        # df.ta.sma returns a Series
+        vol_sma = df.ta.sma(close=df['volume'], length=VOLUME_MA_LENGTH)
+        
+        if vol_sma is None: return None
+        
+        current_vol = df.iloc[-1]['volume']
+        current_sma = vol_sma.iloc[-1]
+        
+        # Check for spike
+        if current_sma > 0 and current_vol > current_sma * VOLUME_SPIKE_THRESHOLD:
+            # Determine direction based on price candle
+            candle_color = "Green" if df.iloc[-1]['close'] > df.iloc[-1]['open'] else "Red"
+            direction = "Bullish" if candle_color == "Green" else "Bearish"
+            
+            signal = {
+                "indicator": self.name,
+                "signal_type": f"{direction} Volume Spike",
+                "volume": f"{current_vol:,.0f}",
+                "average_volume": f"{current_sma:,.0f}",
+                "ratio": f"{current_vol/current_sma:.1f}x",
+                "current_price": f"{df.iloc[-1]['close']:.2f}"
+            }
+            return _create_market_snapshot(df, signal)
+            
+        return None
