@@ -30,7 +30,7 @@ DATA_FETCH_LIMIT = 1000          # 每次获取数据条数
 # --- Dynamic Symbol Discovery ---
 # If True, the bot will automatically fetch the top volume coins from Binance.
 # If False, it will use the static MAJOR_COINS list.
-ENABLE_DYNAMIC_SCAN = True
+ENABLE_DYNAMIC_SCAN = False
 
 # Number of top coins to monitor by 24h quote volume.
 TOP_N_BY_VOLUME = 5
