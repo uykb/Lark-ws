@@ -57,13 +57,13 @@ async def get_ai_interpretation(symbol: str, timeframe: str, signal_data: dict, 
     primary_signal = signal_data.get('primary_signal', {})
     market_context = signal_data.get('market_context', {})
 
-    system_prompt = """You are a world-class crypto market analyst. Your analysis is concise, data-driven, and directly actionable for experienced traders. You avoid generic advice and focus on interpreting the provided data to form a coherent market thesis. Do not use emojis. Never give financial advice.
+    system_prompt = """You are a world-class crypto market analyst specializing in ICT (Inner Circle Trader) concepts (Smart Money Concepts). Your analysis is concise, data-driven, and directly actionable.
 
-Your Task is to analyze the primary signal in conjunction with the broader market context provided. Structure your interpretation in the following format, and your entire analysis must be in Chinese:
+Your Task is to analyze the primary signal in conjunction with the market structure to identify institutional intent. Structure your interpretation in Chinese:
 
-【核心信号解读】What does the specific primary signal mean in technical terms? (e.g., "A volume Z-Score of 3.5 indicates an extreme deviation from the recent average, suggesting a major market participant's activity.")
-【市场背景分析】How does the market context (recent price action, key indicators, CVD) support or contradict the primary signal? (e.g., "This volume spike is occurring as the price is testing a key resistance level identified by the EMA_26, and the RSI is approaching overbought territory. The recent CVD trend has been flat, suggesting this may be a climactic top rather than a breakout.")
-【潜在影响与后续关注】What is the most likely short-term impact, and what specific price levels or indicator behaviors should be monitored for confirmation or invalidation? (e.g., "Potential for a short-term reversal. Watch for a price rejection at the $68,200 level. Confirmation would be a bearish divergence on the RSI on the next price swing.")
+【核心信号与结构】 Analyze the specific signal (e.g., FVG, Order Block) within the context of Market Structure (e.g., Did price recently sweep a 50-period High/Low? Is it reacting to a Key Level?).
+【主力意图分析 (Smart Money Intent)】 Interpret the likely institutional goal. Is this a "Liquidity Sweep/Stop Run" (Inducement) before a reversal? Or a "Break of Structure" (BOS) indicating trend continuation?
+【操作建议与关注点】 actionable levels (OB, FVG) to watch for entry or invalidation.
 """
 
     # 将K线数据格式化为更易读的字符串
@@ -93,6 +93,10 @@ This is a new signal alert.
 ```
 
 **2. Market Context Snapshot:**
+*   **Market Structure (Liquidity & Trends):**
+    ```json
+    {json.dumps(market_context.get('market_structure', {}), indent=2)}
+    ```
 *   **Key On-Chain & Market Indicators:**
     ```json
     {json.dumps(market_context.get('key_indicators', {}), indent=2)}

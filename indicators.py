@@ -44,12 +44,28 @@ def _create_market_snapshot(df: pd.DataFrame, primary_signal: dict):
         "atr_14": f"{atr_val:.4f}"
     }
 
+    # --- Market Structure Context ---
+    # Calculate simple structure points (High/Low of last 50 candles) to help AI identify sweeps
+    recent_window = 50
+    recent_high = df['high'].tail(recent_window).max() if len(df) >= recent_window else df['high'].max()
+    recent_low = df['low'].tail(recent_window).min() if len(df) >= recent_window else df['low'].min()
+    
+    current_close = df['close'].iloc[-1]
+    
+    structure = {
+        "recent_high_50": f"{recent_high:.2f}",
+        "recent_low_50": f"{recent_low:.2f}",
+        "dist_from_high": f"{(recent_high - current_close)/recent_high*100:.2f}%",
+        "dist_from_low": f"{(current_close - recent_low)/recent_low*100:.2f}%"
+    }
+
     return {
         "primary_signal": primary_signal,
         "market_context": {
             "recent_klines": klines_data,
             "key_indicators": context_indicators,
-            "technical_indicators": tech_indicators
+            "technical_indicators": tech_indicators,
+            "market_structure": structure
         }
     }
 
@@ -334,4 +350,89 @@ class VolumeSpikeSignal(BaseSignal):
             }
             return _create_market_snapshot(df, signal)
             
+        return None
+
+class OrderBlockSignal(BaseSignal):
+    """
+    Detects Order Blocks (OB) and alerts on retests.
+    OB is defined as the candle preceding a significant displacement (momentum move).
+    """
+    @property
+    def name(self):
+        return "Order Block"
+
+    def check(self, df: pd.DataFrame, symbol: str = None):
+        if len(df) < OB_LOOKBACK + 5: return None
+        
+        # Ensure ATR is there for displacement check
+        if 'ATRr_14' not in df.columns:
+            df.ta.atr(length=14, append=True)
+            
+        current_candle = df.iloc[-1]
+        
+        # Iterate backwards to find the *first* (most recent) OB that matches the current price
+        # We start from -2 (completed candle) back to OB_LOOKBACK
+        for i in range(len(df) - 2, len(df) - OB_LOOKBACK, -1):
+            candle = df.iloc[i]     # The displacement candle candidate
+            prev_candle = df.iloc[i-1] # The OB candidate
+            
+            # Safe ATR access
+            atr = df.iloc[i]['ATRr_14'] if 'ATRr_14' in df.columns and not pd.isna(df.iloc[i]['ATRr_14']) else 0
+            if atr == 0: continue
+            
+            body_size = abs(candle['close'] - candle['open'])
+            
+            # Check for Displacement: Body significantly larger than ATR
+            if body_size > atr * OB_ATR_MULTIPLIER:
+                
+                # --- Potential Bearish OB ---
+                # Pattern: Green Candle (OB) -> Large Red Candle (Displacement)
+                # But strict color isn't always required, just the move. 
+                # Standard ICT: The last up candle before the down move.
+                
+                if candle['close'] < candle['open']: # Downward displacement
+                    ob_top = prev_candle['high']
+                    ob_bottom = prev_candle['low']
+                    
+                    # Check if OB Candle was actually "Up" (Green) or at least not a massive red one?
+                    # ICT: "Last up close candle". Let's stick to standard definition: Green candle.
+                    if prev_candle['close'] > prev_candle['open']:
+                        
+                        # Check if CURRENT price is retesting this zone
+                        # Overlap logic
+                        is_retesting = (current_candle['high'] >= ob_bottom) and (current_candle['low'] <= ob_top)
+                        
+                        if is_retesting:
+                             signal = {
+                                "indicator": self.name,
+                                "signal_type": "Bearish OB Retest",
+                                "ob_top": f"{ob_top:.2f}",
+                                "ob_bottom": f"{ob_bottom:.2f}",
+                                "displacement_candle_date": str(candle.name), # Index is usually datetime
+                                "current_price": f"{current_candle['close']:.2f}"
+                            }
+                             return _create_market_snapshot(df, signal)
+
+                # --- Potential Bullish OB ---
+                # Pattern: Red Candle (OB) -> Large Green Candle (Displacement)
+                elif candle['close'] > candle['open']: # Upward displacement
+                    ob_top = prev_candle['high']
+                    ob_bottom = prev_candle['low']
+                    
+                    # ICT: "Last down close candle". Red candle.
+                    if prev_candle['close'] < prev_candle['open']:
+                        
+                        is_retesting = (current_candle['high'] >= ob_bottom) and (current_candle['low'] <= ob_top)
+                        
+                        if is_retesting:
+                             signal = {
+                                "indicator": self.name,
+                                "signal_type": "Bullish OB Retest",
+                                "ob_top": f"{ob_top:.2f}",
+                                "ob_bottom": f"{ob_bottom:.2f}",
+                                "displacement_candle_date": str(candle.name),
+                                "current_price": f"{current_candle['close']:.2f}"
+                            }
+                             return _create_market_snapshot(df, signal)
+                           
         return None
