@@ -118,4 +118,41 @@ Z_SCORE_CHANGE_THRESHOLD = 0.5
 
 # 百分比类信号的显著变化阈值 (例如 OI 变化)
 # 只有当新的百分比与上次发送的百分比差值的绝对值大于此阈值时，才被视为新信号
+DEFAULT_COOLDOWN_PERIOD_MINUTES = 60
+
+# FVG 信号的专属冷却时间（分钟）。
+# 在此时间内，如果 FVG 的价格区间与上次触发的 FVG 价格区间相近，则不会重复发送。
+FVG_COOLDOWN_PERIOD_MINUTES = 30 
+
+# 最大冷却时间上限（分钟），例如 4 小时 (240分钟)
+MAX_COOLDOWN_PERIOD_MINUTES = 240
+
+# 冷却时间递增因子 (指数增长)
+# 每次重复触发，冷却时间 = 基础冷却时间 * (因子 ^ (触发次数 - 1))
+COOLDOWN_BACKOFF_FACTOR = 2
+
+# FVG 信号的价格容忍度百分比。
+# 如果新的 FVG 的 fvg_top 和 fvg_bottom 与上次的 FVG 的 top/bottom 都相差小于此百分比，则视为“相同”的 FVG。
+FVG_PRICE_TOLERANCE_PERCENT = 0.05 # e.g., 0.05%
+
+# Z-Score 类信号的显著变化阈值
+# 只有当新的 Z-Score 与上次发送的 Z-Score 差值的绝对值大于此阈值时，才被视为新信号
+Z_SCORE_CHANGE_THRESHOLD = 0.5
+
+# 百分比类信号的显著变化阈值 (例如 OI 变化)
+# 只有当新的百分比与上次发送的百分比差值的绝对值大于此阈值时，才被视为新信号
 PERCENTAGE_CHANGE_THRESHOLD = 0.05 # 5%
+
+# --- Trading Session Settings ---
+# Define active trading sessions in (timezone, start_time_str, end_time_str) format.
+# Times are local to the specified timezone.
+ACTIVE_SESSIONS = [
+    # Kill Zone (UTC 13:30 - 18:00 / 14:30 - 19:00 - handled by timezone awareness)
+    ("UTC", "13:30", "18:00"), # Standard Kill Zone
+    ("UTC", "14:30", "19:00"), # Standard Kill Zone (adjusts for DST if applicable to UTC itself, though UTC doesn't have DST)
+    ("UTC", "13:00", "20:00"), # Extended Kill Zone
+
+    # CME BTC Futures / US Market Hours (New York Time)
+    ("America/New_York", "08:00", "17:00"), # CME US Equity Hours
+    ("America/New_York", "04:00", "16:00"), # US Market Pre-open to Post-close
+]

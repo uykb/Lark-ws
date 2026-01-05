@@ -1,6 +1,7 @@
 import asyncio
-from datetime import datetime
-from config import TIMEFRAMES, ACTIVE_SIGNALS
+from datetime import datetime, time
+import pytz
+from config import TIMEFRAMES, ACTIVE_SIGNALS, ACTIVE_SESSIONS
 from data_fetcher import get_all_binance_data_async
 import indicators as indicator_module
 from ai_interpreter import get_ai_interpretation
@@ -21,6 +22,43 @@ def initialize_signal_checkers():
         else:
             log.warning(f"Signal checker '{signal_class_name}' not found in indicators module.")
     return checkers
+
+def is_within_trading_hours() -> bool:
+    """
+    Checks if the current UTC time falls within any of the defined ACTIVE_SESSIONS.
+    Handles different timezones and daylight saving time automatically.
+    """
+    now_utc = datetime.utcnow().replace(tzinfo=pytz.utc)
+
+    for tz_name, start_time_str, end_time_str in ACTIVE_SESSIONS:
+        try:
+            timezone = pytz.timezone(tz_name)
+            # Get current time in the session's timezone
+            now_in_tz = now_utc.astimezone(timezone)
+
+            # Parse start and end times
+            start_hour, start_minute = map(int, start_time_str.split(':'))
+            end_hour, end_minute = map(int, end_time_str.split(':'))
+
+            session_start = now_in_tz.replace(hour=start_hour, minute=start_minute, second=0, microsecond=0)
+            session_end = now_in_tz.replace(hour=end_hour, minute=end_minute, second=0, microsecond=0)
+
+            # Handle overnight sessions (e.g., 22:00 - 04:00 next day)
+            if session_start > session_end:
+                # If current time is past start_time or before end_time (on the next day)
+                if now_in_tz >= session_start or now_in_tz < session_end:
+                    return True
+            else:
+                # Normal session (start_time < end_time)
+                if session_start <= now_in_tz < session_end:
+                    return True
+        except pytz.exceptions.UnknownTimeZoneError:
+            log.error(f"Unknown timezone in config: {tz_name}")
+            continue
+        except Exception as e:
+            log.error(f"Error checking trading hours for {tz_name} ({start_time_str}-{end_time_str}): {e}")
+            continue
+    return False
 
 state_manager = SignalStateManager()
 signal_checkers = initialize_signal_checkers()
@@ -73,6 +111,12 @@ async def main_loop():
     log.info("Starting the crypto signal monitor (Async Mode)...")
     
     while True:
+        # Check if current time is within active trading sessions
+        if not is_within_trading_hours():
+            log.info("Outside of active trading hours. Sleeping for 1 minute until next check.")
+            await asyncio.sleep(1 * 60) # Still sleep for 1 minute before re-checking
+            continue # Skip run_check and go to next loop iteration
+
         try:
             await run_check()
         except Exception as e:
