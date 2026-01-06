@@ -67,6 +67,21 @@ async def get_all_usdt_futures_symbols(session):
         log.error(f"Error during dynamic symbol discovery: {e}. Falling back to MAJOR_COINS.")
         return MAJOR_COINS
 
+async def fetch_binance_server_time(session):
+    """Fetches the current server time from Binance (Futures API)."""
+    try:
+        url = f"{BASE_URL}/fapi/v1/time"
+        async with session.get(url) as response:
+            response.raise_for_status()
+            data = await response.json()
+            server_time_ms = data['serverTime']
+            # Convert to UTC datetime
+            server_time_utc = pd.to_datetime(server_time_ms, unit='ms').to_pydatetime()
+            return server_time_utc
+    except Exception as e:
+        log.error(f"Failed to fetch Binance server time: {e}")
+        return None
+
 async def get_binance_data_async(symbol: str, timeframe: str, session):
     """Asynchronously fetches K-lines, OI, and L/S Ratio for a single symbol and timeframe."""
     try:

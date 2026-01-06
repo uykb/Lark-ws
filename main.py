@@ -1,13 +1,22 @@
 import asyncio
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 import pytz
-from config import TIMEFRAMES, ACTIVE_SIGNALS, ACTIVE_SESSIONS
-from data_fetcher import get_all_binance_data_async
+from config import TIMEFRAMES, ACTIVE_SIGNALS, ACTIVE_SESSIONS, SOCKS5_PROXY
+from data_fetcher import get_all_binance_data_async, fetch_binance_server_time
 import indicators as indicator_module
 from ai_interpreter import get_ai_interpretation
 from alerter import send_all_alerts
 from state_manager import SignalStateManager
 from logger import log
+import aiohttp
+from aiohttp_socks import ProxyConnector
+
+# Global Time Offset (Binance Time - Local System Time)
+TIME_OFFSET = timedelta(seconds=0)
+
+def get_synced_now():
+    """Returns the current UTC time synchronized with Binance server time."""
+    return datetime.utcnow() + TIME_OFFSET
 
 # --- Initialization ---
 
@@ -93,10 +102,11 @@ async def run_check():
                         ai_insight, model_name = await get_ai_interpretation(symbol, timeframe, signal, previous_signal=prev_signal)
                         
                         # Async Lark alert
-                        await send_all_alerts(symbol, timeframe, signal, ai_insight, model_name=model_name)
+                        synced_now = get_synced_now()
+                        await send_all_alerts(symbol, timeframe, signal, ai_insight, model_name=model_name, timestamp=synced_now)
                         
                         # Small delay to avoid hitting rate limits if multiple signals trigger at once
-                        await asyncio.sleep(2) 
+                        await asyncio.sleep(2)  
 
     log.info("Check complete.")
 
@@ -109,7 +119,27 @@ async def main_loop():
         return
 
     log.info("Starting the crypto signal monitor (Async Mode)...")
-    
+
+    # --- Time Synchronization ---
+    global TIME_OFFSET
+    if SOCKS5_PROXY:
+        connector = ProxyConnector.from_url(SOCKS5_PROXY, ssl=False)
+    else:
+        connector = aiohttp.TCPConnector(ssl=False)
+
+    try:
+        async with aiohttp.ClientSession(connector=connector) as session:
+            binance_time = await fetch_binance_server_time(session)
+            if binance_time:
+                local_now = datetime.utcnow()
+                offset = binance_time - local_now
+                TIME_OFFSET = offset
+                log.info(f"Time Synchronized. Local: {local_now}, Binance: {binance_time}, Offset: {offset}")
+            else:
+                log.warning("Failed to synchronize time with Binance. Using local system time.")
+    except Exception as e:
+        log.error(f"Time synchronization failed: {e}")
+
     while True:
         # Check if current time is within active trading sessions
         if not is_within_trading_hours():

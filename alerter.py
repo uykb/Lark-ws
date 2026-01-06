@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 from config import LARK_WEBHOOK_URL, WX_WEBHOOK_URL, WX_WEBHOOK_AUTH
 from logger import log
 
-async def send_wx_alert(symbol: str, timeframe: str, signal_data: dict, ai_interpretation: str, model_name: str = "Unknown AI"):
+async def send_wx_alert(symbol: str, timeframe: str, signal_data: dict, ai_interpretation: str, model_name: str = "Unknown AI", timestamp: datetime = None):
     """
     Sends a simple text alert to the WX webhook.
     """
@@ -17,6 +17,7 @@ async def send_wx_alert(symbol: str, timeframe: str, signal_data: dict, ai_inter
         log.warning("WX webhook URL not set. Skipping WX alert.")
         return
 
+    alert_time = timestamp if timestamp else datetime.utcnow()
     primary = signal_data.get('primary_signal', {})
     signal_type = primary.get('signal_type', 'N/A')
     indicator = primary.get('indicator', 'N/A')
@@ -33,7 +34,7 @@ async def send_wx_alert(symbol: str, timeframe: str, signal_data: dict, ai_inter
     metrics_str = "\n".join(metrics)
     
     # Construct content
-    content = f"Timeframe: {timeframe}\nStrategy: {indicator}\n\nMetrics:\n{metrics_str}\n\nAI Analysis ({model_name}):\n{ai_interpretation}\n\nTime: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+    content = f"Timeframe: {timeframe}\nStrategy: {indicator}\n\nMetrics:\n{metrics_str}\n\nAI Analysis ({model_name}):\n{ai_interpretation}\n\nTime: {alert_time.strftime('%Y-%m-%d %H:%M:%S UTC')}"
     
     payload = {
         "title": title,
@@ -57,7 +58,7 @@ async def send_wx_alert(symbol: str, timeframe: str, signal_data: dict, ai_inter
     except Exception as e:
         log.error(f"Exception sending WX alert for {symbol}: {e}")
 
-async def send_all_alerts(symbol: str, timeframe: str, signal_data: dict, ai_interpretation: str, model_name: str = "Unknown AI"):
+async def send_all_alerts(symbol: str, timeframe: str, signal_data: dict, ai_interpretation: str, model_name: str = "Unknown AI", timestamp: datetime = None):
     """
     Wrapper to send alerts to all configured channels.
     """
@@ -65,16 +66,16 @@ async def send_all_alerts(symbol: str, timeframe: str, signal_data: dict, ai_int
     
     # Lark Alert
     if LARK_WEBHOOK_URL:
-        tasks.append(send_lark_alert(symbol, timeframe, signal_data, ai_interpretation, model_name))
+        tasks.append(send_lark_alert(symbol, timeframe, signal_data, ai_interpretation, model_name, timestamp))
         
     # WX Alert
     if WX_WEBHOOK_URL:
-        tasks.append(send_wx_alert(symbol, timeframe, signal_data, ai_interpretation, model_name))
+        tasks.append(send_wx_alert(symbol, timeframe, signal_data, ai_interpretation, model_name, timestamp))
         
     if tasks:
         await asyncio.gather(*tasks)
 
-async def send_lark_alert(symbol: str, timeframe: str, signal_data: dict, ai_interpretation: str, model_name: str = "Unknown AI"):
+async def send_lark_alert(symbol: str, timeframe: str, signal_data: dict, ai_interpretation: str, model_name: str = "Unknown AI", timestamp: datetime = None):
     """
     构建并发送一个美化后的 Lark (飞书) 交互式卡片消息
     """
@@ -83,6 +84,7 @@ async def send_lark_alert(symbol: str, timeframe: str, signal_data: dict, ai_int
         log.warning("Lark webhook URL not set. Cannot send alert.")
         return
     
+    alert_time = timestamp if timestamp else datetime.utcnow()
     # 提取数据
     primary = signal_data.get('primary_signal', {})
     indicator_name = primary.get('indicator', 'N/A')
@@ -122,7 +124,8 @@ async def send_lark_alert(symbol: str, timeframe: str, signal_data: dict, ai_int
 
     # Get current time in Asia/Shanghai timezone
     shanghai_tz = ZoneInfo("Asia/Shanghai")
-    current_shanghai_time = datetime.now(shanghai_tz).strftime('%Y-%m-%d %H:%M:%S')
+    # Convert alert_time (assumed UTC) to Shanghai time
+    current_shanghai_time = alert_time.replace(tzinfo=ZoneInfo("UTC")).astimezone(shanghai_tz).strftime('%Y-%m-%d %H:%M:%S')
 
     # 3. 构建卡片元素
     elements = [
@@ -248,7 +251,7 @@ async def send_lark_alert(symbol: str, timeframe: str, signal_data: dict, ai_int
         "elements": [
             {
                 "tag": "plain_text",
-                "content": f"Bot: {model_name} | Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+                "content": f"Bot: {model_name} | Time: {alert_time.strftime('%Y-%m-%d %H:%M:%S UTC')}"
             }
         ]
     })
