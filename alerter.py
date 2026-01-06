@@ -108,7 +108,8 @@ async def send_lark_alert(symbol: str, timeframe: str, signal_data: dict, ai_int
     
     for k, v in primary.items():
         if k not in excluded_keys:
-            key_metrics.append(f"**{k.replace('_', ' ').title()}**\n{v}")
+            # 格式化指标，确保简洁
+            key_metrics.append(f"**{k.replace('_', ' ').title()}:** {v}")
             
     # 如果有 thresholds_used，单独放一行
     threshold_info = primary.get('thresholds_used', '')
@@ -116,11 +117,11 @@ async def send_lark_alert(symbol: str, timeframe: str, signal_data: dict, ai_int
     # 将指标分为两列
     col1_text = ""
     col2_text = ""
-    for i, metric in enumerate(key_metrics):
-        if i % 2 == 0:
-            col1_text += metric + "\n\n"
-        else:
-            col2_text += metric + "\n\n"
+    # 确保至少有1个元素才尝试拆分
+    if key_metrics:
+        mid_idx = (len(key_metrics) + 1) // 2
+        col1_text = "\n".join(key_metrics[:mid_idx])
+        col2_text = "\n".join(key_metrics[mid_idx:])
 
     # Get current time in Asia/Shanghai timezone
     shanghai_tz = ZoneInfo("Asia/Shanghai")
@@ -214,7 +215,7 @@ async def send_lark_alert(symbol: str, timeframe: str, signal_data: dict, ai_int
                 parts = section.split('】', 1)
                 title = parts[0]
                 content = parts[1].strip()
-                formatted_ai += f"**📌 {title}**\n{content}\n\n"
+                formatted_ai += f"**📌 {title}**\n{content.strip()}\n\n"
             else:
                 if section.strip():
                     formatted_ai += section.strip() + "\n"
