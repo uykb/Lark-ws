@@ -37,7 +37,9 @@ def is_within_trading_hours() -> bool:
     Checks if the current UTC time falls within any of the defined ACTIVE_SESSIONS.
     Handles different timezones and daylight saving time automatically.
     """
-    now_utc = datetime.utcnow().replace(tzinfo=pytz.utc)
+    # Use synchronized time if available, otherwise fallback to system UTC
+    now_utc_naive = get_synced_now()
+    now_utc = now_utc_naive.replace(tzinfo=pytz.utc)
 
     for tz_name, start_time_str, end_time_str in ACTIVE_SESSIONS:
         try:

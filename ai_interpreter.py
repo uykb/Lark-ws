@@ -35,7 +35,8 @@ async def _call_openai_compatible_api(api_key: str, api_url: str, model_name: st
     # Create SSL context with certifi
     ssl_context = ssl.create_default_context(cafile=certifi.where())
 
-    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ssl_context)) as session:
+    timeout = aiohttp.ClientTimeout(total=60)
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ssl_context), timeout=timeout) as session:
         async with session.post(api_url, headers=headers, json=payload) as response:
             if response.status == 200:
                 data = await response.json()

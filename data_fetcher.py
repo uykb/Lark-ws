@@ -147,7 +147,8 @@ async def get_all_binance_data_async():
     else:
         connector = aiohttp.TCPConnector(ssl=False)
 
-    async with aiohttp.ClientSession(connector=connector) as session:
+    timeout = aiohttp.ClientTimeout(total=30)
+    async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
         symbols = await get_all_usdt_futures_symbols(session)
         if not symbols:
             return {}
